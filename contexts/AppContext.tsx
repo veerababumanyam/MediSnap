@@ -45,6 +45,7 @@ interface AppContextType {
         setSearchQuery: (query: string) => void;
         // ...
         handleUpdateTasks: (patientId: string, tasks: ClinicalTask[]) => Promise<void>;
+        handleSaveNotes: (patientId: string, notes: string) => Promise<void>;
         handleAddReport: (patientId: string, reportData: Omit<Report, 'id'>, file?: File) => Promise<void>;
         handleCreateAndAnalyze: (data: any) => Promise<void>;
         toggleHuddleModal: () => void;

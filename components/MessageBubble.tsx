@@ -34,19 +34,20 @@ import { ClinicalDebate } from './ClinicalDebate';
 import { SpecialtyReport } from './SpecialtyReport';
 import { SpeakerIcon } from './icons/SpeakerIcon';
 import * as apiManager from '../services/apiManager';
+import { useAppContext } from '../contexts/AppContext';
 
 interface MessageBubbleProps {
-  message: Message;
-  isLoading?: boolean;
-  patient?: Patient | null;
-  onViewReport?: (reportId: string) => void;
-  onAnalyzeReport?: (reportId: string) => void;
-  onGeneratePrescription?: (meds: Array<{ drug: string; suggestedDose: string; }>) => void;
-  onFeedback?: (message: Message) => void;
-  onContentResize?: () => void;
+    message: Message;
+    isLoading?: boolean;
+    patient?: Patient | null;
+    onViewReport?: (reportId: string) => void;
+    onAnalyzeReport?: (reportId: string) => void;
+    onGeneratePrescription?: (meds: Array<{ drug: string; suggestedDose: string; }>) => void;
+    onFeedback?: (message: Message) => void;
+    onContentResize?: () => void;
 }
 
-const SuggestedActionButton: React.FC<{ action: SuggestedAction; onViewReport: (reportId: string) => void;}> = React.memo(({ action, onViewReport }) => {
+const SuggestedActionButton: React.FC<{ action: SuggestedAction; onViewReport: (reportId: string) => void; }> = React.memo(({ action, onViewReport }) => {
     if (action.type !== 'view_report' || !action.reportId) return null;
 
     return (
@@ -64,32 +65,32 @@ const SuggestedActionButton: React.FC<{ action: SuggestedAction; onViewReport: (
 
 // Helper for decoding audio
 function decode(base64: string) {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
 }
 
 async function decodeAudioData(
-  data: Uint8Array,
-  ctx: AudioContext,
-  sampleRate: number,
-  numChannels: number,
+    data: Uint8Array,
+    ctx: AudioContext,
+    sampleRate: number,
+    numChannels: number,
 ): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer);
-  const frameCount = dataInt16.length / numChannels;
-  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+    const dataInt16 = new Int16Array(data.buffer);
+    const frameCount = dataInt16.length / numChannels;
+    const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
-  for (let channel = 0; channel < numChannels; channel++) {
-    const channelData = buffer.getChannelData(channel);
-    for (let i = 0; i < frameCount; i++) {
-      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    for (let channel = 0; channel < numChannels; channel++) {
+        const channelData = buffer.getChannelData(channel);
+        for (let i = 0; i < frameCount; i++) {
+            channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+        }
     }
-  }
-  return buffer;
+    return buffer;
 }
 
 const formatText = (text: string): React.ReactNode[] => {
@@ -168,7 +169,7 @@ const formatText = (text: string): React.ReactNode[] => {
 };
 
 const AiMessageContent: React.FC<{ message: Message; patient?: Patient | null; onViewReport?: (reportId: string) => void; onAnalyzeReport?: (reportId: string) => void; onGeneratePrescription?: (meds: Array<{ drug: string; suggestedDose: string; }>) => void; onContentResize?: () => void; }> = React.memo(({ message, patient, onViewReport, onAnalyzeReport, onGeneratePrescription, onContentResize }) => {
-    
+
     // Extract medication events once if patient is available
     const medEvents = patient ? extractMedicationEvents(patient) : [];
 
@@ -225,7 +226,7 @@ const AiMessageContent: React.FC<{ message: Message; patient?: Patient | null; o
                 if (!report) {
                     return <div className="text-red-500">Error: The referenced report (ID: {message.reportId}) could not be found for this patient.</div>;
                 }
-                
+
                 return (
                     <div>
                         <div className="prose prose-sm max-w-none mb-3 text-gray-800 dark:text-gray-200 dark:prose-invert">{formatText(message.title)}</div>
@@ -238,7 +239,7 @@ const AiMessageContent: React.FC<{ message: Message; patient?: Patient | null; o
             }
             return null;
         case 'text':
-             if(message.sender === 'ai') {
+            if (message.sender === 'ai') {
                 return (
                     <div className="prose prose-sm max-w-none text-gray-700 dark:text-gray-200 dark:prose-invert">
                         {formatText(message.text)}
@@ -247,45 +248,45 @@ const AiMessageContent: React.FC<{ message: Message; patient?: Patient | null; o
                         )}
                     </div>
                 );
-             }
-             return null;
+            }
+            return null;
         default:
             return null;
     }
 });
 
 const UserMessageContent: React.FC<{ message: Message; onViewFiles: (files: UploadableFile[], startIndex: number) => void }> = React.memo(({ message, onViewFiles }) => {
-    switch(message.type) {
+    switch (message.type) {
         case 'text':
             return <p className="font-medium text-white">{message.text}</p>;
         case 'image':
-             const imageFile: UploadableFile = {
+            const imageFile: UploadableFile = {
                 name: "Uploaded Image",
                 mimeType: message.mimeType,
                 base64Data: message.base64Data,
                 previewUrl: `data:${message.mimeType};base64,${message.base64Data}`
             };
             return (
-                 <div onClick={() => onViewFiles([imageFile], 0)} className="p-1.5 bg-white/20 rounded-xl cursor-pointer hover:bg-white/30 transition-colors backdrop-blur-sm">
-                    <img 
+                <div onClick={() => onViewFiles([imageFile], 0)} className="p-1.5 bg-white/20 rounded-xl cursor-pointer hover:bg-white/30 transition-colors backdrop-blur-sm">
+                    <img
                         src={imageFile.previewUrl}
                         alt="Uploaded report"
                         className="max-w-xs max-h-64 rounded-lg shadow-sm"
                     />
                 </div>
             );
-         case 'multi_file':
+        case 'multi_file':
             return (
                 <div>
                     {message.text && <p className="mb-3 font-medium">{message.text}</p>}
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
                         {message.files.map((file, index) => (
-                             <div 
-                                key={index} 
-                                onClick={() => onViewFiles(message.files, index)} 
+                            <div
+                                key={index}
+                                onClick={() => onViewFiles(message.files, index)}
                                 className="relative group aspect-square bg-white/10 rounded-xl flex items-center justify-center cursor-pointer overflow-hidden border border-white/20 hover:border-white/40 transition-all"
                             >
-                                <img src={file.previewUrl} alt={file.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"/>
+                                <img src={file.previewUrl} alt={file.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                                 <div className="absolute inset-0 flex flex-col items-center justify-center p-1 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px]">
                                     <ReportTypeIcon type={getFileTypeFromFile(file)} className="w-6 h-6 text-white drop-shadow-md" />
                                     <p className="text-white text-xs text-center font-bold truncate mt-1 drop-shadow-md w-full px-1">{file.name}</p>
@@ -301,124 +302,125 @@ const UserMessageContent: React.FC<{ message: Message; onViewFiles: (files: Uplo
 });
 
 export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({ message, isLoading = false, patient, onViewReport, onAnalyzeReport, onGeneratePrescription, onFeedback, onContentResize }) => {
-  const isAI = message.sender === 'ai';
-  const [viewingFiles, setViewingFiles] = useState<{ files: UploadableFile[], startIndex: number } | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const audioContextRef = useRef<AudioContext | null>(null);
+    const { state } = useAppContext();
+    const { aiSettings } = state;
+    const isAI = message.sender === 'ai';
+    const [viewingFiles, setViewingFiles] = useState<{ files: UploadableFile[], startIndex: number } | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const audioContextRef = useRef<AudioContext | null>(null);
 
-  const handleViewFiles = (files: UploadableFile[], startIndex: number) => {
-    setViewingFiles({ files, startIndex });
-  };
+    const handleViewFiles = (files: UploadableFile[], startIndex: number) => {
+        setViewingFiles({ files, startIndex });
+    };
 
-  const handlePlayTTS = async () => {
-      if (isPlaying) {
-          audioContextRef.current?.close();
-          audioContextRef.current = null;
-          setIsPlaying(false);
-          return;
-      }
+    const handlePlayTTS = async () => {
+        if (isPlaying) {
+            audioContextRef.current?.close();
+            audioContextRef.current = null;
+            setIsPlaying(false);
+            return;
+        }
 
-      setIsPlaying(true);
-      let textToRead = '';
-      if (message.type === 'text') textToRead = message.text;
-      else if (message.type === 'smart_summary') textToRead = message.narrativeSummary;
-      else if ('summary' in message && typeof message.summary === 'string') textToRead = message.summary;
-      else textToRead = "Audio output not supported for this message type.";
+        setIsPlaying(true);
+        let textToRead = '';
+        if (message.type === 'text') textToRead = message.text;
+        else if (message.type === 'smart_summary') textToRead = message.narrativeSummary;
+        else if ('summary' in message && typeof message.summary === 'string') textToRead = message.summary;
+        else textToRead = "Audio output not supported for this message type.";
 
-      const audioData = await apiManager.generateSpeech(textToRead.substring(0, 500)); // Limit for preview
-      
-      if (audioData) {
-          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
-          audioContextRef.current = ctx;
-          const outputNode = ctx.createGain();
-          const audioBuffer = await decodeAudioData(decode(audioData), ctx, 24000, 1);
-          const source = ctx.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(outputNode);
-          outputNode.connect(ctx.destination);
-          
-          source.addEventListener('ended', () => {
-              setIsPlaying(false);
-              ctx.close();
-              audioContextRef.current = null;
-          });
-          source.start();
-      } else {
-          setIsPlaying(false);
-      }
-  };
+        const audioData = await apiManager.generateSpeech(textToRead.substring(0, 500), aiSettings); // Limit for preview
 
-  if (isAI && isLoading) {
+        if (audioData) {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+            audioContextRef.current = ctx;
+            const outputNode = ctx.createGain();
+            const audioBuffer = await decodeAudioData(decode(audioData), ctx, 24000, 1);
+            const source = ctx.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(outputNode);
+            outputNode.connect(ctx.destination);
+
+            source.addEventListener('ended', () => {
+                setIsPlaying(false);
+                ctx.close();
+                audioContextRef.current = null;
+            });
+            source.start();
+        } else {
+            setIsPlaying(false);
+        }
+    };
+
+    if (isAI && isLoading) {
+        return (
+            <div className="flex items-start space-x-3">
+                <div className="w-8 h-8 flex-shrink-0 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center animate-pulse">
+                    <BotIcon className="w-5 h-5 text-blue-500" />
+                </div>
+                <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md p-4 rounded-2xl rounded-tl-none shadow-sm flex items-center space-x-2 border border-white/40 dark:border-gray-700/40">
+                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-0"></span>
+                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-150"></span>
+                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-300"></span>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex items-start space-x-3">
-            <div className="w-8 h-8 flex-shrink-0 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center animate-pulse">
-                <BotIcon className="w-5 h-5 text-blue-500" />
-            </div>
-            <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md p-4 rounded-2xl rounded-tl-none shadow-sm flex items-center space-x-2 border border-white/40 dark:border-gray-700/40">
-                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-0"></span>
-                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-150"></span>
-                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-300"></span>
-            </div>
-      </div>
-    );
-  }
+        <div className={`flex items-end space-x-3 group ${isAI ? 'justify-start' : 'justify-end'}`}>
+            {isAI && (
+                <div className="w-8 h-8 flex-shrink-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 mb-2">
+                    <BotIcon className="w-5 h-5 text-white" />
+                </div>
+            )}
+            <div
+                className={`relative p-5 rounded-2xl shadow-lg border backdrop-blur-md transition-all duration-300
+        ${isAI
+                        ? 'glass-card text-gray-800 dark:text-gray-200 rounded-bl-none max-w-4xl hover:shadow-xl'
+                        : 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-none max-w-xl border-transparent shadow-blue-500/20'
+                    }`}
+            >
+                {isAI ? (
+                    <AiMessageContent message={message} patient={patient} onViewReport={onViewReport} onAnalyzeReport={onAnalyzeReport} onGeneratePrescription={onGeneratePrescription} onContentResize={onContentResize} />
+                ) : (
+                    <UserMessageContent message={message} onViewFiles={handleViewFiles} />
+                )}
 
-  return (
-    <div className={`flex items-end space-x-3 group ${isAI ? 'justify-start' : 'justify-end'}`}>
-      {isAI && (
-        <div className="w-8 h-8 flex-shrink-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 mb-2">
-          <BotIcon className="w-5 h-5 text-white" />
-        </div>
-      )}
-      <div
-        className={`relative p-5 rounded-2xl shadow-lg border backdrop-blur-md transition-all duration-300
-        ${
-          isAI
-            ? 'glass-card text-gray-800 dark:text-gray-200 rounded-bl-none max-w-4xl hover:shadow-xl'
-            : 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-none max-w-xl border-transparent shadow-blue-500/20'
-        }`}
-      >
-        {isAI ? (
-            <AiMessageContent message={message} patient={patient} onViewReport={onViewReport} onAnalyzeReport={onAnalyzeReport} onGeneratePrescription={onGeneratePrescription} onContentResize={onContentResize} />
-        ) : (
-            <UserMessageContent message={message} onViewFiles={handleViewFiles} />
-        )}
-        
-        {isAI && (
-            <div className="absolute -bottom-8 right-2 flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <button 
-                    onClick={handlePlayTTS} 
-                    title={isPlaying ? "Stop" : "Read Aloud"} 
-                    className={`p-1.5 rounded-full shadow-md border border-white/20 dark:border-gray-700/50 backdrop-blur-sm transition-all ${isPlaying ? 'bg-blue-600 text-white animate-pulse' : 'bg-white/80 dark:bg-gray-800/80 text-gray-400 hover:text-blue-600'}`}
-                >
-                    <SpeakerIcon className="w-3.5 h-3.5" />
-                </button>
-                {onFeedback && (
-                    <>
-                        <button onClick={() => onFeedback(message)} title="Helpful" className="p-1.5 bg-white/80 dark:bg-gray-800/80 rounded-full shadow-md border border-white/20 dark:border-gray-700/50 text-gray-400 hover:text-green-600 hover:scale-110 transition-all backdrop-blur-sm">
-                            <ThumbsUpIcon className="w-3.5 h-3.5" />
+                {isAI && (
+                    <div className="absolute -bottom-8 right-2 flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <button
+                            onClick={handlePlayTTS}
+                            title={isPlaying ? "Stop" : "Read Aloud"}
+                            className={`p-1.5 rounded-full shadow-md border border-white/20 dark:border-gray-700/50 backdrop-blur-sm transition-all ${isPlaying ? 'bg-blue-600 text-white animate-pulse' : 'bg-white/80 dark:bg-gray-800/80 text-gray-400 hover:text-blue-600'}`}
+                        >
+                            <SpeakerIcon className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => onFeedback(message)} title="Not helpful" className="p-1.5 bg-white/80 dark:bg-gray-800/80 rounded-full shadow-md border border-white/20 dark:border-gray-700/50 text-gray-400 hover:text-red-600 hover:scale-110 transition-all backdrop-blur-sm">
-                            <ThumbsDownIcon className="w-3.5 h-3.5" />
-                        </button>
-                    </>
+                        {onFeedback && (
+                            <>
+                                <button onClick={() => onFeedback(message)} title="Helpful" className="p-1.5 bg-white/80 dark:bg-gray-800/80 rounded-full shadow-md border border-white/20 dark:border-gray-700/50 text-gray-400 hover:text-green-600 hover:scale-110 transition-all backdrop-blur-sm">
+                                    <ThumbsUpIcon className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={() => onFeedback(message)} title="Not helpful" className="p-1.5 bg-white/80 dark:bg-gray-800/80 rounded-full shadow-md border border-white/20 dark:border-gray-700/50 text-gray-400 hover:text-red-600 hover:scale-110 transition-all backdrop-blur-sm">
+                                    <ThumbsDownIcon className="w-3.5 h-3.5" />
+                                </button>
+                            </>
+                        )}
+                    </div>
                 )}
             </div>
-        )}
-      </div>
-      {!isAI && (
-        <div className="w-8 h-8 flex-shrink-0 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mb-2">
-          <UserIcon className="w-5 h-5 text-gray-500 dark:text-gray-300" />
-        </div>
-      )}
+            {!isAI && (
+                <div className="w-8 h-8 flex-shrink-0 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mb-2">
+                    <UserIcon className="w-5 h-5 text-gray-500 dark:text-gray-300" />
+                </div>
+            )}
 
-      {viewingFiles && (
-        <FileViewerModal
-            files={viewingFiles.files}
-            startIndex={viewingFiles.startIndex}
-            onClose={() => setViewingFiles(null)}
-        />
-       )}
-    </div>
-  );
+            {viewingFiles && (
+                <FileViewerModal
+                    files={viewingFiles.files}
+                    startIndex={viewingFiles.startIndex}
+                    onClose={() => setViewingFiles(null)}
+                />
+            )}
+        </div>
+    );
 });

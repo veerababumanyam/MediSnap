@@ -11,8 +11,8 @@ import { ReportTypeIcon } from './icons/ReportTypeIcon';
 import * as apiManager from '../services/apiManager';
 
 interface ChatComposerProps {
-  onSendMessage: (query: string, files: File[]) => void;
-  isLoading: boolean;
+    onSendMessage: (query: string, files: File[]) => void;
+    isLoading: boolean;
 }
 
 const formatFileSize = (bytes: number) => {
@@ -23,7 +23,11 @@ const formatFileSize = (bytes: number) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
 
+import { useAppContext } from '../contexts/AppContext';
+
 export const ChatComposer: React.FC<ChatComposerProps> = React.memo(({ onSendMessage, isLoading }) => {
+    const { state } = useAppContext();
+    const { aiSettings } = state;
     const [input, setInput] = useState('');
     const { stagedFiles, addFiles, removeFile, clearFiles, isProcessing } = useFileStaging();
     const [isRecording, setIsRecording] = useState(false);
@@ -60,7 +64,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = React.memo(({ onSendMes
 
             mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const transcript = await apiManager.transcribeAudio(audioBlob);
+                const transcript = await apiManager.transcribeAudio(audioBlob, aiSettings);
                 setInput(prev => (prev ? prev + ' ' : '') + transcript);
                 stream.getTracks().forEach(track => track.stop());
             };
@@ -87,14 +91,14 @@ export const ChatComposer: React.FC<ChatComposerProps> = React.memo(({ onSendMes
 
     const handleSendMessageClick = () => {
         if (isLoading || (!input.trim() && stagedFiles.length === 0)) return;
-        
+
         // Deep Thinking Trigger Check
         if (input.toLowerCase().startsWith('/think') || input.toLowerCase().includes('deep reason')) {
-             onSendMessage(`(Thinking...) ${input}`, stagedFiles.map(sf => sf.file));
+            onSendMessage(`(Thinking...) ${input}`, stagedFiles.map(sf => sf.file));
         } else {
-             onSendMessage(input, stagedFiles.map(sf => sf.file));
+            onSendMessage(input, stagedFiles.map(sf => sf.file));
         }
-        
+
         setInput('');
         clearFiles();
     };
@@ -105,7 +109,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = React.memo(({ onSendMes
             handleSendMessageClick();
         }
     };
-    
+
     // Drag and Drop Handlers
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -144,20 +148,20 @@ export const ChatComposer: React.FC<ChatComposerProps> = React.memo(({ onSendMes
             setShowLinkInput(false);
             return;
         }
-        
+
         try {
             const processed = await processExternalLink(linkInputVal.trim());
             let file: File;
             if (processed.base64Data && processed.mimeType.startsWith('image/')) {
-                 const byteCharacters = atob(processed.base64Data);
-                 const byteNumbers = new Array(byteCharacters.length);
-                 for (let i = 0; i < byteCharacters.length; i++) {
-                     byteNumbers[i] = byteCharacters.charCodeAt(i);
-                 }
-                 const byteArray = new Uint8Array(byteNumbers);
-                 file = new File([byteArray], processed.name, { type: processed.mimeType });
+                const byteCharacters = atob(processed.base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                file = new File([byteArray], processed.name, { type: processed.mimeType });
             } else {
-                 file = new File([`External Resource Link: ${linkInputVal.trim()}`], `link_${Date.now()}.txt`, { type: 'text/plain' });
+                file = new File([`External Resource Link: ${linkInputVal.trim()}`], `link_${Date.now()}.txt`, { type: 'text/plain' });
             }
             const dt = new DataTransfer();
             dt.items.add(file);
@@ -171,7 +175,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = React.memo(({ onSendMes
     };
 
     return (
-        <div 
+        <div
             className="relative transition-all duration-200"
             onDrop={handleDrop}
             onDragOver={handleDragOver}
@@ -184,7 +188,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = React.memo(({ onSendMes
                     <p className="font-bold text-blue-700 dark:text-blue-300 text-lg">Drop files here</p>
                 </div>
             )}
-            
+
             {(stagedFiles.length > 0 || isProcessing) && (
                 <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900/30 border-b border-gray-200/50 dark:border-gray-700/50 transition-all duration-300 ease-in-out">
                     <div className="flex items-center justify-between mb-3">
@@ -194,23 +198,23 @@ export const ChatComposer: React.FC<ChatComposerProps> = React.memo(({ onSendMes
                             </span>
                             Attached Files
                         </h4>
-                        <button 
+                        <button
                             onClick={clearFiles}
                             className="text-[10px] font-semibold text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 hover:underline transition-colors"
                         >
                             Clear All
                         </button>
                     </div>
-                    
+
                     <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
                         {stagedFiles.map((sf, index) => (
                             <div key={`${sf.file.name}-${index}`} className="relative group flex-shrink-0 w-24 flex flex-col">
                                 <div className="aspect-square bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm relative">
                                     {sf.previewUrl ? (
-                                        <img src={sf.previewUrl} alt={sf.file.name} className="w-full h-full object-cover transition-transform group-hover:scale-105"/>
+                                        <img src={sf.previewUrl} alt={sf.file.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                                     ) : (
                                         <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 p-2 bg-gray-100 dark:bg-gray-800/50">
-                                            <ReportTypeIcon type={getFileTypeFromFile({name: sf.file.name, mimeType: sf.file.type})} className="w-8 h-8 mb-1" />
+                                            <ReportTypeIcon type={getFileTypeFromFile({ name: sf.file.name, mimeType: sf.file.type })} className="w-8 h-8 mb-1" />
                                         </div>
                                     )}
                                     <button
@@ -218,7 +222,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = React.memo(({ onSendMes
                                         className="absolute top-1 right-1 p-1 bg-white/90 dark:bg-black/60 text-gray-500 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 rounded-full shadow-sm backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
                                         aria-label={`Remove ${sf.file.name}`}
                                     >
-                                        <XIcon className="w-3 h-3"/>
+                                        <XIcon className="w-3 h-3" />
                                     </button>
                                 </div>
                                 <div className="mt-1.5 px-0.5">
@@ -244,8 +248,8 @@ export const ChatComposer: React.FC<ChatComposerProps> = React.memo(({ onSendMes
             {showLinkInput && (
                 <div className="p-2 border-b border-gray-200/50 dark:border-gray-700/50 flex items-center space-x-2 animate-fadeIn">
                     <LinkIcon className="w-4 h-4 text-blue-500" />
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         value={linkInputVal}
                         onChange={(e) => setLinkInputVal(e.target.value)}
                         placeholder="Paste URL here..."

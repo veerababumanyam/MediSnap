@@ -8,39 +8,26 @@
  * 4. Verifying the aggregated object contains the new data
  */
 
+import * as dotenv from 'dotenv';
 import { initializeApp } from "firebase/app";
-import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
-import {
-    savePatientDemographics,
-    addMedication,
-    addLabResult,
-    getPatient,
-    saveExtractedData
-} from '../services/ehrService';
 
-// Initialize Firebase (Mock/Test config)
-const firebaseConfig = {
-    apiKey: "test-api-key",
-    authDomain: "test-project.firebaseapp.com",
-    projectId: "test-project",
-    storageBucket: "test-project.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abcdef"
-};
-
-const app = initializeApp(firebaseConfig);
-// Note: In a real environment, we'd check if initialized. 
-// For this script, we assume it runs in a context where we can init or use existing.
-// However, ehrService imports 'db' from './firebase'. 
-// We should rely on the app's db initialization if running this inside the app context, 
-// OR mock it if running standalone. 
-// Since we can't easily run standalone node scripts with imports from the app without setup,
-// We will create a "Test Component" instead or just assume we can run this via a browser console or a temporary React component.
-
-// Better approach for this environment: Create a temporary test function that acts as a "script" 
-// but is exported so I can call it or see it.
+// Load environment variables BEFORE importing services that depend on them
+const result = dotenv.config({ path: '.env.local' });
+if (result.error) {
+    console.error("Error loading .env.local:", result.error);
+}
+console.log("Loaded API Key:", process.env.VITE_FIREBASE_API_KEY ? "YES (starts with " + process.env.VITE_FIREBASE_API_KEY.substring(0, 5) + ")" : "NO");
 
 export const runDatabaseVerification = async () => {
+    // Dynamic import to ensure env vars are loaded first
+    const {
+        savePatientDemographics,
+        addMedication,
+        addLabResult,
+        getPatient,
+        saveExtractedData
+    } = await import('../services/ehrService.ts');
+
     console.log("Starting Database Verification...");
     const testId = `test_patient_${Date.now()}`;
 
@@ -63,9 +50,7 @@ export const runDatabaseVerification = async () => {
         dose: "10mg",
         frequency: "daily",
         status: "active",
-        createdAt: Date.now() // This is ignored by Omit, but passed here safely? 
-        // Wait, Omit<MedicationDocument, 'createdAt'> means we shouldn't pass it?
-        // My addMedication implementation adds it.
+        createdAt: Date.now()
     } as any);
 
     // 3. Add Lab Result (Granular)
