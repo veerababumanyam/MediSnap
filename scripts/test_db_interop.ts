@@ -26,7 +26,7 @@ export const runDatabaseVerification = async () => {
         addLabResult,
         getPatient,
         saveExtractedData
-    } = await import('../services/ehrService.ts');
+    } = await import('../src/services/ehrService.ts');
 
     console.log("Starting Database Verification...");
     const testId = `test_patient_${Date.now()}`;
