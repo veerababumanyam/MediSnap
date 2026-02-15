@@ -4,7 +4,6 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
-    "target": "medisnap",
     "public": "dist",
     "ignore": [
       "firebase.json",

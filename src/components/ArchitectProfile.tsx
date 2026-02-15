@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BotIcon } from './icons/BotIcon';
+import { LogoIcon } from './icons/LogoIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { ShieldCheckIcon } from './icons/ShieldCheckIcon';
 import { ActivityIcon } from './icons/ActivityIcon';
+import { BRAND_NAME } from '../constants/branding';
 
 /* ─── Intersection Observer Hook ────────────────────────────── */
 
@@ -280,7 +281,7 @@ export const ArchitectProfile: React.FC<ArchitectProfileProps> = ({ onBack }) =>
                             aria-label="Back to MediSnap AI"
                         >
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:shadow-blue-500/50 group-hover:scale-105 transition-all duration-300">
-                                <BotIcon className="w-5 h-5 text-white" />
+                                <LogoIcon className="w-5 h-5 text-white" />
                             </div>
                             <span className="text-lg font-bold text-white tracking-tight">
                                 MediSnap<span className="text-blue-400">AI</span>
@@ -289,7 +290,7 @@ export const ArchitectProfile: React.FC<ArchitectProfileProps> = ({ onBack }) =>
                     ) : (
                         <a href="/" className="flex items-center space-x-3 group" aria-label="MediSnap AI Home">
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:shadow-blue-500/50 group-hover:scale-105 transition-all duration-300">
-                                <BotIcon className="w-5 h-5 text-white" />
+                                <LogoIcon className="w-5 h-5 text-white" />
                             </div>
                             <span className="text-lg font-bold text-white tracking-tight">
                                 MediSnap<span className="text-blue-400">AI</span>
@@ -550,7 +551,7 @@ export const ArchitectProfile: React.FC<ArchitectProfileProps> = ({ onBack }) =>
                 <div className="max-w-7xl mx-auto px-5 md:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="flex items-center space-x-3">
                         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                            <BotIcon className="w-4.5 h-4.5 text-white" />
+                            <LogoIcon className="w-4.5 h-4.5 text-white" />
                         </div>
                         <span className="text-sm font-bold text-white">MediSnap<span className="text-blue-400">AI</span></span>
                     </div>

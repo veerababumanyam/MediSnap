@@ -2,12 +2,13 @@
 import React, { useState, useRef } from 'react';
 import type { Message, SuggestedAction, Patient, UploadableFile } from '../types';
 import { UserIcon } from './icons/UserIcon';
-import { BotIcon } from './icons/BotIcon';
+import { LogoIcon } from './icons/LogoIcon';
 import { TrendChart } from './TrendChart';
 import { GdmtChecklist } from './GdmtChecklist';
 import { ReportComparisonTable } from './ReportComparisonTable';
 import { DocumentIcon } from './icons/DocumentIcon';
 import { DifferentialDiagnosis } from './DifferentialDiagnosis';
+import { BRAND_NAME } from '../constants/branding';
 import { RiskStratificationCalculator } from './RiskStratificationCalculator';
 import { ContraindicationChecker } from './ContraindicationChecker';
 import { DosageOptimization } from './DosageOptimization';
@@ -355,7 +356,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({ message
         return (
             <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 flex-shrink-0 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center animate-pulse">
-                    <BotIcon className="w-5 h-5 text-blue-500" />
+                    <LogoIcon className="w-5 h-5 text-blue-500" />
                 </div>
                 <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md p-4 rounded-2xl rounded-tl-none shadow-sm flex items-center space-x-2 border border-white/40 dark:border-gray-700/40">
                     <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-0"></span>
@@ -370,7 +371,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({ message
         <div className={`flex items-end space-x-3 group ${isAI ? 'justify-start' : 'justify-end'}`}>
             {isAI && (
                 <div className="w-8 h-8 flex-shrink-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 mb-2">
-                    <BotIcon className="w-5 h-5 text-white" />
+                    <LogoIcon className="w-5 h-5 text-white" />
                 </div>
             )}
             <div

@@ -4,10 +4,11 @@ import type { Patient } from '../types';
 import { SearchIcon } from './icons/SearchIcon';
 import { PlusCircleIcon } from './icons/PlusCircleIcon';
 import { ClipboardListIcon } from './icons/ClipboardListIcon';
-import { BotIcon } from './icons/BotIcon';
+import { LogoIcon } from './icons/LogoIcon';
 import { SettingsIcon } from './icons/SettingsIcon';
 import { useTheme } from '../hooks/useTheme';
 import { SunIcon } from './icons/SunIcon';
+import { BRAND_NAME } from '../constants/branding';
 import { MoonIcon } from './icons/MoonIcon';
 import { useAppContext } from '../contexts/AppContext';
 
@@ -252,7 +253,7 @@ export const PatientSelector: React.FC = () => {
       <header className={`z-20 flex items-center p-4 -mx-4 -mt-4 mb-2 transition-all ${isPatientListCollapsed ? 'justify-center' : 'justify-between'}`}>
          <div className="flex items-center" title="MediSnap AI Assistant">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center transform rotate-3 flex-shrink-0">
-             <BotIcon className="w-6 h-6 text-white" />
+             <LogoIcon className="w-6 h-6 text-white" />
            </div>
            {!isPatientListCollapsed && (
               <div className="ml-3">

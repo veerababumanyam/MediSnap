@@ -3,8 +3,30 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Favicons for all platforms -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+  
+  <!-- Apple Touch Icon -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  
+  <!-- Android Chrome Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
+  
+  <!-- Web App Manifest -->
+  <link rel="manifest" href="/site.webmanifest" />
+  
+  <!-- Microsoft Tiles -->
+  <meta name="msapplication-TileColor" content="#2563eb" />
+  <meta name="msapplication-config" content="/browserconfig.xml" />
+  
+  <!-- Theme Color -->
+  <meta name="theme-color" content="#2563eb" />
+  
   <title>MediSnap AI — AI-Powered Clinical Intelligence Platform | Medical AI Assistant</title>
 
   <!-- SEO Meta Tags -->
@@ -37,7 +59,7 @@
     "@type": "MedicalOrganization",
     "name": "MediSnap AI",
     "url": "https://medisnapai.com",
-    "logo": "https://medisnapai.com/vite.svg",
+    "logo": "https://medisnapai.com/MediSnapLogo.png",
     "description": "AI-powered clinical intelligence platform for healthcare professionals",
     "medicalSpecialty": ["Cardiology", "Neurology", "Oncology", "Nephrology", "Pulmonology", "Endocrinology", "Gastroenterology", "Rheumatology", "Geriatrics", "Infectious Disease", "Electrophysiology"],
     "sameAs": []
@@ -266,6 +288,16 @@
     @keyframes landing-slide-up {
       from { opacity: 0; transform: translateY(30px); }
       to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Error Banner Animation ────────────────────────── */
+    .animate-slide-down {
+      animation: slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes slide-down {
+      from { opacity: 0; transform: translate(-50%, -20px); }
+      to   { opacity: 1; transform: translate(-50%, 0); }
     }
 
     /* ─── Landing Page – Gradient Text Animation ────────── */

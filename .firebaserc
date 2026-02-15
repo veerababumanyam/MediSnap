@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "swarasutra"
+  },
   "targets": {
     "lyricstudio-app": {
       "hosting": {

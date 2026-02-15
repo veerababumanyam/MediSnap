@@ -6,13 +6,14 @@ import { XIcon } from './icons/XIcon';
 import { MicrophoneIcon } from './icons/MicrophoneIcon';
 import { RadioIcon } from './icons/RadioIcon';
 import { UserIcon } from './icons/UserIcon';
-import { BotIcon } from './icons/BotIcon';
+import { LogoIcon } from './icons/LogoIcon';
 import { ClipboardListIcon } from './icons/ClipboardListIcon';
 import { ActivityIcon } from './icons/ActivityIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { HeartPulseIcon } from './icons/HeartPulseIcon';
 import { EyeIcon } from './icons/SpecialtyIcons';
 import { SpeakerIcon } from './icons/SpeakerIcon';
+import { BRAND_NAME } from '../constants/branding';
 import * as apiManager from '../services/apiManager';
 
 // --- HELPER FUNCTIONS ---
@@ -509,7 +510,7 @@ export const LiveAssistant: React.FC = () => {
               className={`flex items-center space-x-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${!isScribeActive && mode === 'clinician' ? 'bg-white text-black shadow-sm' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
               title="Clinician Mode: Concise, Medical Terms"
             >
-              <BotIcon className="w-4 h-4" />
+              <LogoIcon className="w-4 h-4" />
               <span>Clinician</span>
             </button>
             <button
@@ -553,7 +554,7 @@ export const LiveAssistant: React.FC = () => {
             <div className="relative">
               <div className={`w-32 h-32 rounded-full border-4 border-blue-500/30 flex items-center justify-center transition-transform duration-500 ${isAITurn ? 'scale-110' : 'scale-100'}`}>
                 <div className={`w-24 h-24 rounded-full flex items-center justify-center shadow-[0_0_50px_-12px_rgba(37,99,235,0.5)] ${isScribeActive ? 'bg-red-600' : 'bg-blue-600'} ${isAITurn || isScribeActive ? 'animate-pulse' : ''}`}>
-                  {isScribeActive ? <MicrophoneIcon className="w-12 h-12 text-white" /> : <BotIcon className="w-12 h-12 text-white" />}
+                  {isScribeActive ? <MicrophoneIcon className="w-12 h-12 text-white" /> : <LogoIcon className="w-12 h-12 text-white" />}
                 </div>
               </div>
               {isAITurn && !isScribeActive && (

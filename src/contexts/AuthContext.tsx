@@ -16,11 +16,13 @@ interface AuthContextType {
     user: User | null;
     userProfile: UserProfile | null;
     loading: boolean;
+    authError: string | null;
     signInWithGoogle: () => Promise<void>;
     logout: () => Promise<void>;
     refreshProfile: () => Promise<void>;
     updateGeminiApiKey: (key: string) => Promise<void>;
     validateApiKey: (key: string) => Promise<boolean>;
+    clearAuthError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [user, setUser] = useState<User | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [authError, setAuthError] = useState<string | null>(null);
 
     const fetchUserProfile = async (uid: string) => {
         try {
@@ -66,12 +69,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signInWithGoogle = async () => {
         const provider = new GoogleAuthProvider();
+        setAuthError(null); // Clear previous errors
         try {
             await signInWithPopup(auth, provider);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error signing in with Google:", error);
+            
+            // Provide user-friendly error messages
+            let errorMessage = 'Failed to sign in. Please try again.';
+            
+            if (error.code === 'auth/popup-closed-by-user') {
+                errorMessage = 'Sign-in was cancelled. Please try again.';
+            } else if (error.code === 'auth/popup-blocked') {
+                errorMessage = 'Pop-up was blocked by your browser. Please allow pop-ups for this site.';
+            } else if (error.code === 'auth/network-request-failed') {
+                errorMessage = 'Network error. Please check your internet connection.';
+            } else if (error.code === 'auth/invalid-api-key' || error.code === 'auth/configuration-not-found') {
+                errorMessage = 'Authentication configuration error. Please contact support.';
+            } else if (error.message) {
+                errorMessage = `Sign-in error: ${error.message}`;
+            }
+            
+            setAuthError(errorMessage);
             throw error;
         }
+    };
+
+    const clearAuthError = () => {
+        setAuthError(null);
     };
 
     const logout = async () => {
@@ -109,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ user, userProfile, loading, signInWithGoogle, logout, refreshProfile, updateGeminiApiKey, validateApiKey }}>
+        <AuthContext.Provider value={{ user, userProfile, loading, authError, signInWithGoogle, logout, refreshProfile, updateGeminiApiKey, validateApiKey, clearAuthError }}>
             {children}
         </AuthContext.Provider>
     );

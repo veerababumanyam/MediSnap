@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BotIcon } from './icons/BotIcon';
+import { useAuth } from '../contexts/AuthContext';
+import { LogoIcon } from './icons/LogoIcon';
 import { HeartPulseIcon } from './icons/HeartPulseIcon';
 import { UsersIcon } from './icons/UsersIcon';
 import { ChatBubbleLeftRightIcon } from './icons/ChatBubbleLeftRightIcon';
@@ -372,6 +373,7 @@ const WorkflowStep: React.FC<{ step: string; title: string; description: string;
    ═══════════════════════════════════════════════════════════════ */
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
+    const { authError, clearAuthError } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
@@ -389,6 +391,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
         const el = document.getElementById(id);
         el?.scrollIntoView({ behavior: 'smooth' });
         setIsMobileMenuOpen(false);
+    };
+
+    const handleSignIn = async () => {
+        try {
+            await onEnter();
+        } catch (error) {
+            // Error is already captured in AuthContext
+            console.error('Sign-in failed:', error);
+        }
     };
 
     return (
@@ -423,9 +434,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
             >
                 <div className="flex items-center justify-between px-5 md:px-8 max-w-7xl mx-auto w-full">
                     {/* Logo */}
-                    <a href="#" className="flex items-center space-x-3 group" aria-label="MediSnap AI Home">
+                    <a href="#" className="flex items-center space-x-3 group" aria-label={`${BRAND_NAME} Home`}>
                         <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:shadow-blue-500/50 group-hover:scale-105 transition-all duration-300">
-                            <BotIcon className="w-6 h-6 text-white" />
+                            <LogoIcon className="w-6 h-6 text-white" />
                         </div>
                         <span className="text-xl font-bold text-white tracking-tight group-hover:text-blue-200 transition-colors duration-300">
                             MediSnap<span className="text-blue-400">AI</span>
@@ -456,13 +467,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                     {/* Auth Buttons */}
                     <div className="hidden md:flex items-center gap-3">
                         <button
-                            onClick={onEnter}
+                            onClick={handleSignIn}
                             className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/[0.06] transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                         >
                             Sign In
                         </button>
                         <button
-                            onClick={onEnter}
+                            onClick={handleSignIn}
                             className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/25 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
                         >
                             Get Started Free
@@ -512,14 +523,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                         </a>
                         <hr className="border-white/10 my-2" />
                         <button
-                            onClick={onEnter}
+                            onClick={handleSignIn}
                             className="block w-full text-left px-4 py-3 text-gray-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-colors text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                             role="menuitem"
                         >
                             Sign In
                         </button>
                         <button
-                            onClick={onEnter}
+                            onClick={handleSignIn}
                             className="block w-full text-center px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl text-sm font-semibold shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                             role="menuitem"
                         >
@@ -528,6 +539,36 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                     </div>
                 </div>
             </nav>
+
+            {/* ════════════════════════════════════════════════════════
+                 AUTH ERROR BANNER
+                 ════════════════════════════════════════════════════════ */}
+            {authError && (
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-2xl w-full px-4 animate-slide-down">
+                    <div className="landing-glass-card border border-red-500/30 bg-red-500/10 rounded-2xl p-4 shadow-xl shadow-red-500/20">
+                        <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center mt-0.5">
+                                <svg className="w-3 h-3 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                                </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-sm font-semibold text-red-300 mb-1">Authentication Failed</h3>
+                                <p className="text-sm text-red-200/80">{authError}</p>
+                            </div>
+                            <button
+                                onClick={clearAuthError}
+                                className="flex-shrink-0 p-1 rounded-lg hover:bg-red-500/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                                aria-label="Dismiss error"
+                            >
+                                <svg className="w-4 h-4 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ════════════════════════════════════════════════════════
                  HERO SECTION
@@ -959,7 +1000,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
 
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <button
-                            onClick={onEnter}
+                            onClick={handleSignIn}
                             className="group relative px-10 py-5 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:shadow-blue-600/50 hover:scale-[1.03] transition-all duration-300 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
                             aria-label="Sign up for MediSnap AI"
                         >
@@ -970,7 +1011,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                         </button>
                         <button
-                            onClick={onEnter}
+                            onClick={handleSignIn}
                             className="px-10 py-5 rounded-2xl landing-glass-card border border-white/[0.1] text-white font-semibold text-lg hover:bg-white/[0.08] hover:border-white/[0.2] transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                         >
                             Sign In to Dashboard
@@ -993,7 +1034,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                         <div className="md:col-span-1">
                             <div className="flex items-center space-x-3 mb-4">
                                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                                    <BotIcon className="w-5 h-5 text-white" />
+                                    <LogoIcon className="w-5 h-5 text-white" />
                                 </div>
                                 <span className="text-lg font-bold text-white">MediSnap<span className="text-blue-400">AI</span></span>
                             </div>

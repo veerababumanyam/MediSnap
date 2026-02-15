@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import type { UserRole, UserProfile } from '../types';
+import { Logo } from './LogoImage';
+import { BRAND_NAME } from '../constants/branding';
 
 export const OnboardingPage: React.FC = () => {
     const { user, refreshProfile } = useAuth();
@@ -60,7 +62,8 @@ export const OnboardingPage: React.FC = () => {
         <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
             <div className="max-w-md w-full p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl space-y-8 glass-panel border border-white/20">
                 <div className="text-center">
-                    <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">Welcome to MediaSnap</h2>
+                    <Logo.Medium className="mx-auto mb-6" style={{ width: 80, height: 'auto' }} />
+                    <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">Welcome to {BRAND_NAME}</h2>
                     <p className="mt-2 text-gray-600 dark:text-gray-400">Let's set up your profile.</p>
                 </div>
 

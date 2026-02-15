@@ -9,7 +9,10 @@
     "emulators": "firebase emulators:start",
     "build": "vite build",
     "preview": "vite preview",
-    "cleanup:roles": "node scripts/cleanup-legacy-roles.mjs"
+    "cleanup:roles": "node scripts/cleanup-legacy-roles.mjs",
+    "generate:icons": "node scripts/generate-icons.mjs",
+    "generate:og-image": "node scripts/generate-og-image.mjs",
+    "generate:all-icons": "npm run generate:icons && npm run generate:og-image"
   },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
@@ -25,6 +28,7 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "sharp": "^0.34.5",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

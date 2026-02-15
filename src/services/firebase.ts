@@ -27,6 +27,33 @@ const firebaseConfig = {
     appId: getEnv('VITE_FIREBASE_APP_ID')
 };
 
+// Validate Firebase configuration
+const requiredEnvVars = [
+    { key: 'VITE_FIREBASE_API_KEY', value: firebaseConfig.apiKey },
+    { key: 'VITE_FIREBASE_AUTH_DOMAIN', value: firebaseConfig.authDomain },
+    { key: 'VITE_FIREBASE_PROJECT_ID', value: firebaseConfig.projectId }
+];
+
+const missingVars = requiredEnvVars.filter(v => !v.value);
+
+if (missingVars.length > 0) {
+    const missing = missingVars.map(v => v.key).join(', ');
+    const errorMsg = `Firebase configuration error: Missing required environment variables: ${missing}`;
+    console.error(errorMsg);
+    console.error('Please ensure your .env.local file contains all required Firebase credentials.');
+    console.error('For production deployment, configure these as Firebase environment variables.');
+    
+    // In production, this is a critical error
+    if (import.meta.env.PROD) {
+        throw new Error(errorMsg);
+    } else {
+        // In development, log warning but allow initialization
+        console.warn('Continuing with incomplete Firebase configuration (development mode)');
+    }
+} else {
+    console.log('✓ Firebase configuration validated');
+}
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
