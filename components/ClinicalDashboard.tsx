@@ -28,13 +28,13 @@ const extractEchoData = (patient: Patient) => {
     const echoReport = patient.reports
         .filter(r => r.type === 'Echo')
         .sort((a, b) => b.date.localeCompare(a.date))[0];
-    
+
     if (!echoReport) return { lvef: 'N/A', date: null };
 
     const content = getReportContent(echoReport);
     const lvefMatch = content.match(/LVEF\)?:\s*(\d+)%?/i);
     const lvef = lvefMatch ? `${lvefMatch[1]}%` : 'N/A';
-    
+
     return { lvef, date: echoReport.date };
 };
 
@@ -63,7 +63,7 @@ const extractRhythm = (patient: Patient) => {
     const ecgReports = patient.reports
         .filter(r => r.type === 'ECG')
         .sort((a, b) => b.date.localeCompare(a.date));
-    
+
     const latestEcg = ecgReports[0];
     if (!latestEcg) return { rhythm: 'Unknown', date: null };
 
@@ -85,7 +85,7 @@ const extractAnticoagulation = (patient: Patient) => {
     const meds = patient.currentStatus.medications.map(m => m.toLowerCase());
     const doacs = ['apixaban', 'rivaroxaban', 'dabigatran', 'edoxaban', 'eliquis', 'xarelto'];
     const warfarin = ['warfarin', 'coumadin', 'jantoven'];
-    
+
     let status = 'None';
     if (meds.some(m => doacs.some(d => m.includes(d)))) status = 'DOAC';
     else if (meds.some(m => warfarin.some(w => m.includes(w)))) status = 'Warfarin';
@@ -114,7 +114,7 @@ const DashboardCard: React.FC<{ title: string, icon: React.ReactNode, children: 
                 {icon}
                 <span className="text-xs font-bold uppercase tracking-wider">{title}</span>
             </div>
-            {date && <span className="text-[10px] text-gray-400 font-mono" title={`Data from ${date}`}>{new Date(date).toLocaleDateString(undefined, {month:'short', day:'numeric'})}</span>}
+            {date && <span className="text-[10px] text-gray-400 font-mono" title={`Data from ${date}`}>{new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>}
         </div>
         <div className="space-y-2">
             {children}
@@ -141,16 +141,16 @@ const TimelineView: React.FC<{ events: MedicationEvent[] }> = ({ events }) => {
         <div className="relative pl-4 space-y-4 py-2">
             {/* Vertical Line */}
             <div className="absolute top-2 bottom-2 left-[19px] w-px bg-gray-200 dark:bg-gray-700"></div>
-            
+
             {recentEvents.map((event, index) => (
                 <div key={index} className="relative flex items-start space-x-3 group">
                     {/* Dot */}
                     <div className="relative z-10 w-2.5 h-2.5 rounded-full bg-blue-500 border-2 border-white dark:border-gray-900 mt-1.5 shadow-sm group-hover:scale-125 transition-transform"></div>
-                    
+
                     <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline">
                             <span className="text-xs font-bold text-gray-700 dark:text-gray-200">{event.title}</span>
-                            <span className="text-[10px] text-gray-400 font-mono">{new Date(event.date).toLocaleDateString(undefined, {month:'short', day:'numeric'})}</span>
+                            <span className="text-[10px] text-gray-400 font-mono">{new Date(event.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                         </div>
                         <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate leading-tight mt-0.5" title={event.details}>
                             {event.details}
@@ -180,9 +180,9 @@ const TaskList: React.FC<{ tasks: ClinicalTask[], onAddTask: (text: string) => v
                 {tasks.map(task => (
                     <div key={task.id} className="flex items-center justify-between group p-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                         <div className="flex items-center space-x-2 flex-1 min-w-0">
-                            <input 
-                                type="checkbox" 
-                                checked={task.isCompleted} 
+                            <input
+                                type="checkbox"
+                                checked={task.isCompleted}
                                 onChange={() => onToggleTask(task.id)}
                                 className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 cursor-pointer"
                             />
@@ -190,7 +190,7 @@ const TaskList: React.FC<{ tasks: ClinicalTask[], onAddTask: (text: string) => v
                                 {task.text}
                             </span>
                         </div>
-                        <button 
+                        <button
                             onClick={() => onDeleteTask(task.id)}
                             className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors opacity-0 group-hover:opacity-100"
                             title="Delete Task"
@@ -201,14 +201,14 @@ const TaskList: React.FC<{ tasks: ClinicalTask[], onAddTask: (text: string) => v
                 ))}
             </div>
             <form onSubmit={handleSubmit} className="relative">
-                <input 
-                    type="text" 
+                <input
+                    type="text"
                     value={newTaskText}
                     onChange={(e) => setNewTaskText(e.target.value)}
                     placeholder="Add new task..."
                     className="w-full pl-2 pr-8 py-1.5 text-xs bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800 dark:text-gray-200 placeholder-gray-400"
                 />
-                <button 
+                <button
                     type="submit"
                     disabled={!newTaskText.trim()}
                     className="absolute right-1 top-1 p-0.5 text-blue-500 hover:text-blue-700 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -253,7 +253,7 @@ export const ClinicalDashboard: React.FC = () => {
 
     const handleToggleTask = async (id: string) => {
         if (!selectedPatient) return;
-        const updatedTasks = (selectedPatient.tasks || []).map(t => 
+        const updatedTasks = (selectedPatient.tasks || []).map(t =>
             t.id === id ? { ...t, isCompleted: !t.isCompleted } : t
         );
         await handleUpdateTasks(selectedPatient.id, updatedTasks);
@@ -277,7 +277,7 @@ export const ClinicalDashboard: React.FC = () => {
     if (!isDashboardOpen) {
         return (
             <div className="w-16 border-l border-white/20 dark:border-white/10 glass-panel flex flex-col items-center py-4 space-y-4">
-                <button 
+                <button
                     onClick={toggleDashboard}
                     className="flex flex-col items-center justify-center p-2 rounded-xl text-gray-500 hover:bg-white/50 dark:hover:bg-gray-800/50 dark:text-gray-400 transition-all hover:scale-110 shadow-sm gap-0.5 w-12 h-12"
                     title="Open Clinical Snapshot Dashboard"
@@ -296,13 +296,24 @@ export const ClinicalDashboard: React.FC = () => {
                     <ActivityIcon className="w-5 h-5 text-blue-600" />
                     <h2 className="text-sm font-bold tracking-wide">CLINICAL SNAPSHOT</h2>
                 </div>
-                <button 
-                    onClick={toggleDashboard} 
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 hover:bg-white/20 rounded-lg transition-colors"
-                    title="Close Dashboard"
-                >
-                    <SidebarRightIcon className="w-5 h-5" />
-                </button>
+                <div className="flex items-center space-x-2">
+                    <a
+                        href="http://localhost:5001"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-400 hover:text-blue-500 p-1 hover:bg-white/20 rounded-lg transition-colors"
+                        title="Open ADK Inspector"
+                    >
+                        <SidebarRightIcon className="w-5 h-5 rotate-180" /> {/* Reusing icon for external link visual */}
+                    </a>
+                    <button
+                        onClick={toggleDashboard}
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 hover:bg-white/20 rounded-lg transition-colors"
+                        title="Close Dashboard"
+                    >
+                        <SidebarRightIcon className="w-5 h-5" />
+                    </button>
+                </div>
             </header>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
@@ -327,9 +338,9 @@ export const ClinicalDashboard: React.FC = () => {
                 </div>
 
                 {/* Action Items / Tasks */}
-                <DashboardCard title="Action Items" icon={<ClipboardListIcon className="w-4 h-4"/>} date={null}>
-                    <TaskList 
-                        tasks={data?.tasks || []} 
+                <DashboardCard title="Action Items" icon={<ClipboardListIcon className="w-4 h-4" />} date={null}>
+                    <TaskList
+                        tasks={data?.tasks || []}
                         onAddTask={handleAddTask}
                         onToggleTask={handleToggleTask}
                         onDeleteTask={requestDeleteTask}
@@ -337,29 +348,29 @@ export const ClinicalDashboard: React.FC = () => {
                 </DashboardCard>
 
                 {/* Key Metrics */}
-                <DashboardCard title="Function & Rhythm" icon={<EcgWaveformIcon className="w-4 h-4"/>} date={data?.echo.date}>
+                <DashboardCard title="Function & Rhythm" icon={<EcgWaveformIcon className="w-4 h-4" />} date={data?.echo.date}>
                     <DataRow label="LVEF" value={data?.echo.lvef || 'N/A'} highlight />
                     <DataRow label="Rhythm" value={data?.rhythm.rhythm || 'Unknown'} />
                 </DashboardCard>
 
                 {/* Renal & Electrolytes */}
-                <DashboardCard title="Renal & Lytes" icon={<BeakerIcon className="w-4 h-4"/>} date={data?.labs.date}>
+                <DashboardCard title="Renal & Lytes" icon={<BeakerIcon className="w-4 h-4" />} date={data?.labs.date}>
                     <DataRow label="Creatinine" value={data?.labs.creatinine || 'N/A'} unit="mg/dL" />
                     <DataRow label="eGFR" value={data?.labs.egfr || 'N/A'} unit="mL/min" />
                     <DataRow label="Potassium" value={data?.labs.potassium || 'N/A'} unit="mEq/L" highlight={parseFloat(data?.labs.potassium || '0') > 5.0 || parseFloat(data?.labs.potassium || '0') < 3.5} />
                 </DashboardCard>
 
                 {/* Anticoagulation */}
-                <DashboardCard title="Anticoagulation" icon={<PillIcon className="w-4 h-4"/>} date={null}>
+                <DashboardCard title="Anticoagulation" icon={<PillIcon className="w-4 h-4" />} date={null}>
                     <DataRow label="Status" value={data?.anticoag.status || 'None'} highlight={data?.anticoag.status !== 'None'} />
                     <DataRow label="CHA₂DS₂-VASc" value={String(data?.anticoag.score)} />
                 </DashboardCard>
-                
+
                 {/* Timeline */}
-                <DashboardCard title="Clinical Timeline" icon={<ClipboardListIcon className="w-4 h-4"/>} date={null}>
+                <DashboardCard title="Clinical Timeline" icon={<ClipboardListIcon className="w-4 h-4" />} date={null}>
                     <TimelineView events={data?.events || []} />
                 </DashboardCard>
-                
+
                 {/* Manual Notes Link */}
                 <div className="pt-2 border-t border-white/20 dark:border-white/10">
                     <p className="text-[10px] text-center text-gray-400 dark:text-gray-500 italic">
@@ -368,7 +379,7 @@ export const ClinicalDashboard: React.FC = () => {
                 </div>
             </div>
 
-            <DeleteConfirmationModal 
+            <DeleteConfirmationModal
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={confirmDeleteTask}

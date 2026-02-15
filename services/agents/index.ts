@@ -1,21 +1,21 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { 
-    runTrendAnalysisAgent as runTrendAnalysisAgent_internal, 
-    runDifferentialDiagnosisAgent as runDifferentialDiagnosisAgent_internal, 
-    runEjectionFractionTrendAgent as runEjectionFractionTrendAgent_internal, 
-    runArrhythmiaAnalysisAgent as runArrhythmiaAnalysisAgent_internal, 
-    runBloodPressureAnalysisAgent as runBloodPressureAnalysisAgent_internal, 
-    runCardiacBiomarkerAgent as runCardiacBiomarkerAgent_internal, 
+import {
+    runTrendAnalysisAgent as runTrendAnalysisAgent_internal,
+    runDifferentialDiagnosisAgent as runDifferentialDiagnosisAgent_internal,
+    runEjectionFractionTrendAgent as runEjectionFractionTrendAgent_internal,
+    runArrhythmiaAnalysisAgent as runArrhythmiaAnalysisAgent_internal,
+    runBloodPressureAnalysisAgent as runBloodPressureAnalysisAgent_internal,
+    runCardiacBiomarkerAgent as runCardiacBiomarkerAgent_internal,
     runEcgAnalysisAgent as runEcgAnalysisAgent_internal,
     runReportComparisonAgentFromHistory as runReportComparisonAgentFromHistory_internal,
     runVitalTrendsAgent as runVitalTrendsAgent_internal
 } from './diagnosticAgents';
 
-import { 
-    runInterventionalCardiologyAgent as runInterventionalCardiologyAgent_internal, 
-    runEpAgent as runEpAgent_internal, 
-    runAdvancedHfAgent as runAdvancedHfAgent_internal, 
+import {
+    runInterventionalCardiologyAgent as runInterventionalCardiologyAgent_internal,
+    runEpAgent as runEpAgent_internal,
+    runAdvancedHfAgent as runAdvancedHfAgent_internal,
     runCtaAnalysisAgent as runCtaAnalysisAgent_internal,
     runNeurologyAgent as runNeurologyAgent_internal,
     runOncologyAgent as runOncologyAgent_internal,
@@ -38,24 +38,24 @@ import {
     runGeriatricsAgent as runGeriatricsAgent_internal
 } from './expandedSpecialties';
 
-import { 
+import {
     runSmartSummaryAgent as runSmartSummaryAgent_internal,
-    runMedicationReviewAgent as runMedicationReviewAgent_internal 
+    runMedicationReviewAgent as runMedicationReviewAgent_internal
 } from './summaryAgents';
 
-import { 
-    runTreatmentAdvisorAgent as runTreatmentAdvisorAgent_internal, 
-    runGuidelineAdherenceAgent as runGuidelineAdherenceAgent_internal, 
+import {
+    runTreatmentAdvisorAgent as runTreatmentAdvisorAgent_internal,
+    runGuidelineAdherenceAgent as runGuidelineAdherenceAgent_internal,
     runMedicationSafetyAgent as runMedicationSafetyAgent_internal,
     runDosageOptimizationAgent as runDosageOptimizationAgent_internal,
     runPrescriptionGeneratorAgent as runPrescriptionGeneratorAgent_internal
 } from './treatmentAgents';
 
-import { 
+import {
     runHccCodingAgent as runHccCodingAgent_internal,
-    runFollowUpCoordinatorAgent as runFollowUpCoordinatorAgent_internal, 
-    runRiskStratificationAgent as runRiskStratificationAgent_internal, 
-    runClinicalRiskAgent as runClinicalRiskAgent_internal, 
+    runFollowUpCoordinatorAgent as runFollowUpCoordinatorAgent_internal,
+    runRiskStratificationAgent as runRiskStratificationAgent_internal,
+    runClinicalRiskAgent as runClinicalRiskAgent_internal,
     runReportDisplayAgent as runReportDisplayAgent_internal,
     runGeneralCardiologyQueryAgent as runGeneralCardiologyQueryAgent_internal,
     runGeneralQueryAgent as runGeneralQueryAgent_internal,
@@ -68,7 +68,8 @@ import {
     runMultiModalAnalysisAgent as runMultiModalAnalysisAgent_internal,
     runDeepThinkingAgent as runDeepThinkingAgent_internal,
     runAudioTranscriptionAgent as runAudioTranscriptionAgent_internal,
-    generateSpeechAgent as generateSpeechAgent_internal
+    generateSpeechAgent as generateSpeechAgent_internal,
+    runStructuredExtractionAgent as runStructuredExtractionAgent_internal
 } from './utilityAgents';
 
 import {
@@ -138,6 +139,7 @@ export const runMultiModalAnalysisAgent = runMultiModalAnalysisAgent_internal;
 export const runDeepThinkingAgent = runDeepThinkingAgent_internal;
 export const runAudioTranscriptionAgent = runAudioTranscriptionAgent_internal;
 export const generateSpeechAgent = generateSpeechAgent_internal;
+export const runStructuredExtractionAgent = runStructuredExtractionAgent_internal;
 
 export const runClinicalNoteGeneratorAgent = runClinicalNoteGeneratorAgent_internal;
 

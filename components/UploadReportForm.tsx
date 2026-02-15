@@ -4,13 +4,14 @@ import type { Report } from '../types';
 import { DocumentIcon } from './icons/DocumentIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { getAiSmartReportAnalysis } from '../services/geminiService';
+import { useAppContext } from '../contexts/AppContext'; // NEW
 import { XCircleIcon } from './icons/ChecklistIcons';
 import { AlertTriangleIcon } from './icons/AlertTriangleIcon';
 import { LinkIcon } from './icons/LinkIcon';
 
 interface UploadReportFormProps {
-  onSave: (reportData: { title: string; type: Report['type']; content: Report['content']; date: string; aiSummary?: string; keyFindings?: string[]; }) => void;
-  onCancel: () => void;
+    onSave: (reportData: Omit<Report, 'id'>, file?: File) => void;
+    onCancel: () => void;
 }
 
 const reportTypes: Array<Report['type']> = ['Lab', 'ECG', 'Echo', 'Imaging', 'Meds', 'Cath', 'Device', 'HF Device', 'CTA', 'PDF', 'DICOM', 'Link'];
@@ -20,7 +21,7 @@ type UploadStep = 'initial' | 'analyzing' | 'review';
 const getTextFromPdf = async (file: File): Promise<string> => {
     const pdfjsLib = (window as any).pdfjsLib;
     if (!pdfjsLib) {
-      throw new Error("PDF library is not loaded.");
+        throw new Error("PDF library is not loaded.");
     }
     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.js`;
 
@@ -54,7 +55,7 @@ const fileToReport = async (file: File, specifiedType: Report['type']): Promise<
         const rawText = await getTextFromPdf(file);
         return { type: 'PDF', date, title, content: { type: 'pdf', url, rawText }, rawTextForAnalysis: rawText };
     }
-    
+
     // Default to text
     const rawText = await file.text();
     return { type: specifiedType, date, title, content: rawText, rawTextForAnalysis: rawText };
@@ -62,19 +63,22 @@ const fileToReport = async (file: File, specifiedType: Report['type']): Promise<
 
 
 export const UploadReportForm: React.FC<UploadReportFormProps> = ({ onSave, onCancel }) => {
+    const { state: { aiSettings } } = useAppContext();
     const [step, setStep] = useState<UploadStep>('initial');
     const [fileContent, setFileContent] = useState<Report['content'] | null>(null);
     const [error, setError] = useState('');
     const [progress, setProgress] = useState(0);
     const [urlInput, setUrlInput] = useState('');
-    
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [rawTextForAnalysis, setRawTextForAnalysis] = useState<string | null>(null); // NEW: Store raw text
+
     // State for review step
     const [editedTitle, setEditedTitle] = useState('');
     const [editedDate, setEditedDate] = useState('');
     const [editedType, setEditedType] = useState<Report['type']>('Lab');
     const [aiSummary, setAiSummary] = useState('');
     const [keyFindings, setKeyFindings] = useState<string[]>([]);
-    
+
     // Progress Bar Animation Effect
     useEffect(() => {
         let interval: number;
@@ -93,16 +97,18 @@ export const UploadReportForm: React.FC<UploadReportFormProps> = ({ onSave, onCa
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
         if (selectedFile) {
+            setSelectedFile(selectedFile);
             setStep('analyzing');
             setError('');
 
             try {
-                const { content, rawTextForAnalysis, title, date, type } = await fileToReport(selectedFile, editedType);
+                const { content, rawTextForAnalysis: extractedText, title, date, type } = await fileToReport(selectedFile, editedType);
                 setFileContent(content);
+                setRawTextForAnalysis(extractedText || null);
                 setEditedType(type);
 
                 if (rawTextForAnalysis) {
-                    const aiResult = await getAiSmartReportAnalysis(rawTextForAnalysis, type);
+                    const aiResult = await getAiSmartReportAnalysis(rawTextForAnalysis, type, aiSettings);
                     setEditedTitle(aiResult.suggestedTitle);
                     setEditedDate(aiResult.extractedDate);
                     setAiSummary(aiResult.summary);
@@ -149,7 +155,8 @@ export const UploadReportForm: React.FC<UploadReportFormProps> = ({ onSave, onCa
             date: editedDate,
             aiSummary,
             keyFindings,
-        });
+            rawTextForAnalysis: rawTextForAnalysis || undefined
+        }, selectedFile || undefined);
     };
 
     if (step === 'analyzing') {
@@ -168,21 +175,21 @@ export const UploadReportForm: React.FC<UploadReportFormProps> = ({ onSave, onCa
             </div>
         );
     }
-    
+
     if (step === 'review') {
         return (
-             <form onSubmit={handleSubmit} className="p-3 bg-gray-100 dark:bg-gray-800 border-t border-b border-gray-200 dark:border-gray-700 space-y-3">
-                <h4 className="font-bold text-gray-800 dark:text-gray-100 text-base flex items-center"><SparklesIcon className="w-5 h-5 mr-2 text-blue-500"/>Smart Report Review</h4>
+            <form onSubmit={handleSubmit} className="p-3 bg-gray-100 dark:bg-gray-800 border-t border-b border-gray-200 dark:border-gray-700 space-y-3">
+                <h4 className="font-bold text-gray-800 dark:text-gray-100 text-base flex items-center"><SparklesIcon className="w-5 h-5 mr-2 text-blue-500" />Smart Report Review</h4>
                 {error && <p className="text-red-500 text-xs">{error}</p>}
-                
+
                 <div className="grid grid-cols-2 gap-3">
-                     <div>
+                    <div>
                         <label htmlFor="report-title" className="text-xs font-medium text-gray-600 dark:text-gray-400">Suggested Title</label>
-                        <input id="report-title" type="text" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full mt-1 p-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"/>
+                        <input id="report-title" type="text" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full mt-1 p-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500" />
                     </div>
-                     <div>
+                    <div>
                         <label htmlFor="report-date" className="text-xs font-medium text-gray-600 dark:text-gray-400">Extracted Date</label>
-                        <input id="report-date" type="date" value={editedDate} onChange={(e) => setEditedDate(e.target.value)} className="w-full mt-1 p-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"/>
+                        <input id="report-date" type="date" value={editedDate} onChange={(e) => setEditedDate(e.target.value)} className="w-full mt-1 p-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                 </div>
 
@@ -192,8 +199,8 @@ export const UploadReportForm: React.FC<UploadReportFormProps> = ({ onSave, onCa
                         {reportTypes.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                 </div>
-                 
-                 <div className="p-3 bg-white dark:bg-gray-900/50 rounded-md border border-gray-200 dark:border-gray-600">
+
+                <div className="p-3 bg-white dark:bg-gray-900/50 rounded-md border border-gray-200 dark:border-gray-600">
                     <h5 className="font-semibold text-sm text-gray-800 dark:text-gray-100">AI Summary</h5>
                     <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">{aiSummary}</p>
                     <h5 className="font-semibold text-sm text-gray-800 dark:text-gray-100 mt-2">Key Findings</h5>
@@ -218,19 +225,19 @@ export const UploadReportForm: React.FC<UploadReportFormProps> = ({ onSave, onCa
         <div className="p-3 bg-gray-100 dark:bg-gray-800 border-t border-b border-gray-200 dark:border-gray-700 space-y-3">
             <h4 className="font-semibold text-gray-700 dark:text-gray-200 text-sm">Upload New Report</h4>
             {error && <p className="text-red-500 text-xs">{error}</p>}
-            
+
             <p className="text-xs text-gray-500 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/30 p-2 rounded-md border border-blue-200 dark:border-blue-800">
-                <SparklesIcon className="w-4 h-4 inline-block mr-1 text-blue-600"/>
+                <SparklesIcon className="w-4 h-4 inline-block mr-1 text-blue-600" />
                 Select a file or link to automatically generate a smart summary and extract key data.
             </p>
 
-             <div>
+            <div>
                 <label htmlFor="report-type-select" className="text-xs font-medium text-gray-600 dark:text-gray-400">Report Type</label>
                 <select id="report-type-select" value={editedType} onChange={(e) => setEditedType(e.target.value as Report['type'])} className="w-full mt-1 p-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
                     {reportTypes.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
             </div>
-            
+
             {editedType === 'Link' ? (
                 <div>
                     <label htmlFor="report-url" className="text-xs font-medium text-gray-600 dark:text-gray-400">External URL</label>
@@ -250,8 +257,8 @@ export const UploadReportForm: React.FC<UploadReportFormProps> = ({ onSave, onCa
                 </div>
             ) : (
                 <div>
-                     <label htmlFor="report-file" className="text-xs font-medium text-gray-600 dark:text-gray-400">File</label>
-                     <input
+                    <label htmlFor="report-file" className="text-xs font-medium text-gray-600 dark:text-gray-400">File</label>
+                    <input
                         id="report-file"
                         type="file"
                         onChange={handleFileChange}

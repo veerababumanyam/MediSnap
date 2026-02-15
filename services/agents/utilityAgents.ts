@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import type { Patient, Message, TextMessage, ReportComparisonMessage, ReportComparisonRow, SuggestedAction, Report, RiskStratificationMessage, RiskScoreItem, ConsultationPayload, DailyHuddle, ReportViewerMessage, AiPersonalizationSettings, UploadableFile, HccCodingMessage, SourceVerification, RiskFactorDetail } from '../../types';
+import type { MedicationDocument, LabResultDocument, VitalSignDocument, DiagnosisDocument } from '../databaseSchema';
 
 
 // --- HELPER FUNCTIONS ---
@@ -41,8 +42,8 @@ const parseLabValue = (content: string, regex: RegExp): number | null => {
 const findVerification = (term: string, reports: Report[]): SourceVerification | undefined => {
     const textReports = reports
         .filter(r => typeof r.content === 'string' || (r.content as any).rawText || (r.content as any).metadata?.simulatedContent)
-        .sort((a,b) => b.date.localeCompare(a.date));
-    
+        .sort((a, b) => b.date.localeCompare(a.date));
+
     for (const report of textReports) {
         const content = getReportText(report);
         if (content && content.toLowerCase().includes(term.toLowerCase())) {
@@ -57,12 +58,12 @@ const findVerification = (term: string, reports: Report[]): SourceVerification |
 };
 
 const getPersonalizationInstructions = (aiSettings: AiPersonalizationSettings): string => {
-  const instructions: string[] = [];
-  if (aiSettings.tone === 'formal') instructions.push('Adopt a formal, clinical tone.');
-  if (aiSettings.tone === 'collaborative') instructions.push('Adopt a collaborative, conversational tone.');
-  if (aiSettings.verbosity === 'concise') instructions.push('Keep the response concise and to the point.');
-  if (aiSettings.verbosity === 'detailed') instructions.push('Provide a detailed, comprehensive response.');
-  return instructions.join(' ');
+    const instructions: string[] = [];
+    if (aiSettings.tone === 'formal') instructions.push('Adopt a formal, clinical tone.');
+    if (aiSettings.tone === 'collaborative') instructions.push('Adopt a collaborative, conversational tone.');
+    if (aiSettings.verbosity === 'concise') instructions.push('Keep the response concise and to the point.');
+    if (aiSettings.verbosity === 'detailed') instructions.push('Provide a detailed, comprehensive response.');
+    return instructions.join(' ');
 };
 
 
@@ -77,15 +78,15 @@ export const runConsultReasonAgent = async (files: File[], ai: GoogleGenAI): Pro
         let promptText = "Analyze this clinical document. Provide a concise (1 sentence) 'Reason for Consultation' or 'Clinical Context' summary that a doctor would type into a patient chart. Do not include PHI like name/DOB. Example: 'Evaluation of new onset atrial fibrillation detected on monitoring.'";
 
         if (file.type.startsWith('image/')) {
-             const base64Data = await new Promise<string>((resolve) => {
+            const base64Data = await new Promise<string>((resolve) => {
                 const reader = new FileReader();
                 reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
                 reader.readAsDataURL(file);
             });
             contentPart = { inlineData: { mimeType: file.type, data: base64Data } };
         } else {
-             promptText += ` Filename: ${file.name}.`;
-             contentPart = { text: "Document analysis request." };
+            promptText += ` Filename: ${file.name}.`;
+            contentPart = { text: "Document analysis request." };
         }
 
         const response = await ai.models.generateContent({
@@ -206,7 +207,7 @@ export const runRiskStratificationAgent = async (patient: Patient, query: string
 
     // ... (Keep existing HAS-BLED and ASCVD logic) ...
     // Simplified for brevity in this update block, assume same logic persists
-    
+
     return {
         id: 0,
         sender: 'ai',
@@ -231,7 +232,7 @@ export const runClinicalRiskAgent = async (patient: Patient, query: string, ai: 
             contents: prompt,
             config: { temperature: 0.3 }
         });
-        
+
         return {
             id: 0,
             sender: 'ai',
@@ -253,10 +254,10 @@ export const runReportDisplayAgent = async (patient: Patient, query: string, ai:
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt,
-            config: { responseMimeType: 'application/json', responseSchema: { type: Type.OBJECT, properties: { reportId: {type: Type.STRING}, reasoning: {type: Type.STRING} } } }
+            config: { responseMimeType: 'application/json', responseSchema: { type: Type.OBJECT, properties: { reportId: { type: Type.STRING }, reasoning: { type: Type.STRING } } } }
         });
         const result = JSON.parse(response.text.trim());
-        
+
         if (result.reportId && result.reportId !== 'null') {
             const report = patient.reports.find(r => r.id === result.reportId);
             if (report) return { id: 0, sender: 'ai', type: 'report_viewer', title: `Found: **${report.title}**`, reportId: report.id };
@@ -269,8 +270,8 @@ export const runReportDisplayAgent = async (patient: Patient, query: string, ai:
 
 export const runGeneralCardiologyQueryAgent = async (patient: Patient, query: string, ai: GoogleGenAI, aiSettings: AiPersonalizationSettings): Promise<TextMessage> => {
     const personalization = getPersonalizationInstructions(aiSettings);
-    const context = patient.reports.slice(0, 3).map(r => `${r.type} (${r.date}): ${getReportText(r)?.substring(0,500)}`).join('\n');
-    
+    const context = patient.reports.slice(0, 3).map(r => `${r.type} (${r.date}): ${getReportText(r)?.substring(0, 500)}`).join('\n');
+
     const prompt = `You are a cardiologist AI. ${personalization}
     Patient: ${patient.name}, ${patient.age}y. Condition: ${patient.currentStatus.condition}.
     Data: ${context}
@@ -280,8 +281,8 @@ export const runGeneralCardiologyQueryAgent = async (patient: Patient, query: st
     Answer concisely.`;
 
     try {
-        const response = await ai.models.generateContent({ 
-            model: 'gemini-3-flash-preview', 
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
             contents: prompt
         });
         return { id: 0, sender: 'ai', type: 'text', text: response.text };
@@ -292,7 +293,7 @@ export const runGeneralCardiologyQueryAgent = async (patient: Patient, query: st
 
 export const runDeepThinkingAgent = async (patient: Patient, query: string, ai: GoogleGenAI): Promise<TextMessage> => {
     const context = patient.reports.slice(0, 5).map(r => `${r.type} (${r.date}): ${getReportText(r)}`).join('\n\n');
-    
+
     const prompt = `You are a specialized diagnostic engine. Use deep reasoning to analyze this complex case.
     
     Patient: ${patient.name}, ${patient.age}y.
@@ -305,8 +306,8 @@ export const runDeepThinkingAgent = async (patient: Patient, query: string, ai: 
     Provide a comprehensive, evidence-based analysis.`;
 
     try {
-        const response = await ai.models.generateContent({ 
-            model: 'gemini-3-pro-preview', 
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-pro-preview',
             contents: prompt,
             config: {
                 thinkingConfig: { thinkingBudget: 32768 } // Enable Thinking Mode
@@ -400,7 +401,7 @@ export const runDailyHuddleAgent = async (patients: Patient[], ai: GoogleGenAI):
     const patientSummaries = patients.map(p => `ID: ${p.id}, Name: ${p.name}, Age: ${p.age}, Condition: ${p.currentStatus.condition}, Alerts: ${p.criticalAlerts?.join(', ') || 'None'}`).join('\n');
     const prompt = `Analyze patient list for daily huddle. Return JSON with summary, highRiskPatients, careOpportunities.
     Patients: ${patientSummaries}`;
-    
+
     const responseSchema = {
         type: Type.OBJECT,
         properties: {
@@ -442,7 +443,7 @@ export const runReportComparisonAgent = async (currentReport: Report, previousRe
         },
         required: ['title', 'table', 'summary']
     };
-    
+
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -451,24 +452,126 @@ export const runReportComparisonAgent = async (currentReport: Report, previousRe
         });
         const result = JSON.parse(response.text.trim());
         return { id: Date.now(), sender: 'ai', type: 'report_comparison', title: result.title, currentReportDate: currentReport.date, previousReportDate: previousReport.date, table: result.table, summary: result.summary, suggestedAction: { type: 'view_report', label: 'View Current', reportId: currentReport.id } };
-    } catch(e) { return { id: 0, sender: 'ai', type: 'text', text: "Comparison failed." }; }
+    } catch (e) { return { id: 0, sender: 'ai', type: 'text', text: "Comparison failed." }; }
 };
 
 export const runSmartReportAnalysisAgent = async (reportContent: string, reportType: string, ai: GoogleGenAI): Promise<{ suggestedTitle: string; extractedDate: string; summary: string; keyFindings: string[] }> => {
-    const prompt = `Analyze ${reportType} content. Extract title, date, summary, keyFindings. Content: ${reportContent.substring(0,5000)}. Return JSON.`;
+    const prompt = `Analyze ${reportType} content. Extract title, date, summary, keyFindings. Content: ${reportContent.substring(0, 5000)}. Return JSON.`;
     const responseSchema = {
         type: Type.OBJECT,
         properties: { suggestedTitle: { type: Type.STRING }, extractedDate: { type: Type.STRING }, summary: { type: Type.STRING }, keyFindings: { type: Type.ARRAY, items: { type: Type.STRING } } },
         required: ['suggestedTitle', 'extractedDate', 'summary', 'keyFindings']
     };
-    const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt, config: { responseMimeType: 'application/json', responseSchema } });
-    return JSON.parse(response.text.trim());
+    try {
+        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt, config: { responseMimeType: 'application/json', responseSchema } });
+        return JSON.parse(response.text.trim());
+    } catch (e) {
+        return { suggestedTitle: 'New Report', extractedDate: new Date().toISOString().split('T')[0], summary: 'Extraction Failed', keyFindings: [] };
+    }
+};
+
+export const runStructuredExtractionAgent = async (reportContent: string, reportType: string, ai: GoogleGenAI): Promise<{
+    medications: Omit<MedicationDocument, 'createdAt'>[],
+    labs: Omit<LabResultDocument, 'createdAt'>[],
+    vitals: Omit<VitalSignDocument, 'createdAt'>[],
+    diagnoses: Omit<DiagnosisDocument, 'createdAt'>[]
+}> => {
+    const prompt = `You are a specialized medical data extraction engine. Extract structured clinical data from the following ${reportType} report.
+    
+    Content:
+    ${reportContent.substring(0, 8000)}
+    
+    Extract the following entities into strict JSON arrays:
+    1. Medications: Current/Active medications found. Status should be 'active' unless explicitly stopped.
+    2. Labs: discrete lab results with values and units.
+    3. Vitals: Vital signs with dates.
+    4. Diagnoses: New or confirmed diagnoses.
+
+    Return empty arrays if no data found.`;
+
+    const responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+            medications: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        name: { type: Type.STRING },
+                        dose: { type: Type.STRING },
+                        frequency: { type: Type.STRING },
+                        route: { type: Type.STRING },
+                        status: { type: Type.STRING, enum: ['active', 'stopped', 'held'] }
+                    },
+                    required: ['name', 'dose', 'frequency', 'status']
+                }
+            },
+            labs: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        testName: { type: Type.STRING },
+                        value: { type: Type.NUMBER },
+                        unit: { type: Type.STRING },
+                        referenceRange: { type: Type.STRING },
+                        date: { type: Type.STRING },
+                        category: { type: Type.STRING, enum: ['Chemistry', 'Hematology', 'Microbiology', 'Other'] }
+                    },
+                    required: ['testName', 'value', 'unit', 'date']
+                }
+            },
+            vitals: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        type: { type: Type.STRING, enum: ['BP', 'HR', 'Respiratory Rate', 'Temp', 'O2 Sat', 'Weight', 'Height', 'BMI'] },
+                        value: { type: Type.NUMBER },
+                        value2: { type: Type.NUMBER },
+                        unit: { type: Type.STRING },
+                        date: { type: Type.STRING }
+                    },
+                    required: ['type', 'value', 'unit', 'date']
+                }
+            },
+            diagnoses: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        name: { type: Type.STRING },
+                        icd10: { type: Type.STRING },
+                        status: { type: Type.STRING, enum: ['active', 'resolved', 'historical'] },
+                        onsetDate: { type: Type.STRING }
+                    },
+                    required: ['name', 'status']
+                }
+            }
+        },
+        required: ['medications', 'labs', 'vitals', 'diagnoses']
+    };
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema
+            }
+        });
+        return JSON.parse(response.text.trim());
+    } catch (error) {
+        console.error("Error in structured data extraction:", error);
+        return { medications: [], labs: [], vitals: [], diagnoses: [] };
+    }
 };
 
 export const runMultiModalAnalysisAgent = async (promptText: string, files: UploadableFile[], patient: Patient, ai: GoogleGenAI, aiSettings: AiPersonalizationSettings): Promise<Message> => {
     const parts: any[] = [{ text: `Patient: ${patient.name}. ${promptText}` }];
     files.forEach(f => parts.push({ inlineData: { mimeType: f.mimeType, data: f.base64Data } }));
-    
+
     // Use Pro for Multimodal analysis
     const response = await ai.models.generateContent({ model: 'gemini-3-pro-preview', contents: { parts } });
     return { id: Date.now(), sender: 'ai', type: 'text', text: response.text };

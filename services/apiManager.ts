@@ -1,9 +1,13 @@
 
 import type { Message, Patient, AiPersonalizationSettings, DailyHuddle, Report, TextMessage, UploadableFile, ClinicalNote, MultiSpecialistReviewMessage, ClinicalDebateMessage, DebateTurn, DebateParticipant, SpecialistReport } from '../types';
+import type { MedicationDocument, LabResultDocument, VitalSignDocument, DiagnosisDocument } from './databaseSchema';
 import * as geminiService from './geminiService';
 import * as utilityAgents from './agents/utilityAgents';
 import * as multiAgentSimulation from './agents/multiAgentSimulation';
 import { GoogleGenAI } from "@google/genai";
+
+// Helper to get an AI instance
+const getAiClient = (apiKey?: string) => new GoogleGenAI({ apiKey: apiKey || process.env.API_KEY || '' });
 
 // --- Rate Limiting State ---
 let isRateLimited = false;
@@ -27,7 +31,7 @@ async function handleRateLimiting<T>(apiCall: () => Promise<T>): Promise<T> {
   }
 
   // If the backoff period has passed, reset the rate limit state.
-  isRateLimited = false; 
+  isRateLimited = false;
 
   try {
     return await apiCall();
@@ -49,12 +53,12 @@ async function handleRateLimiting<T>(apiCall: () => Promise<T>): Promise<T> {
 // --- Wrapped Service Exports ---
 // Re-export the functions from geminiService, wrapped in the rate-limiting handler.
 
-export const getPreVisitBriefing = (patient: Patient, aiSettings: AiPersonalizationSettings): Promise<Message> => 
+export const getPreVisitBriefing = (patient: Patient, aiSettings: AiPersonalizationSettings): Promise<Message> =>
   handleRateLimiting(() => geminiService.getPreVisitBriefing(patient, aiSettings));
 
-export const getDailyHuddle = (patients: Patient[]): Promise<DailyHuddle> =>
-  handleRateLimiting(() => geminiService.getDailyHuddle(patients));
-  
+export const getDailyHuddle = (patients: Patient[], aiSettings: AiPersonalizationSettings): Promise<DailyHuddle> =>
+  handleRateLimiting(() => geminiService.getDailyHuddle(patients, aiSettings));
+
 export const getAiResponse = (query: string, patient: Patient, aiSettings: AiPersonalizationSettings): Promise<Message> =>
   handleRateLimiting(() => geminiService.getAiResponse(query, patient, aiSettings));
 
@@ -66,69 +70,78 @@ export const getAiSingleReportAnalysis = (report: Report, patient: Patient, aiSe
 
 export const getAiMultiReportAnalysis = (reports: Report[], patient: Patient, aiSettings: AiPersonalizationSettings): Promise<TextMessage> =>
   handleRateLimiting(() => geminiService.getAiMultiReportAnalysis(reports, patient, aiSettings));
-  
-export const getAiReportComparison = (currentReport: Report, previousReport: Report, patient: Patient): Promise<Message> =>
-  handleRateLimiting(() => geminiService.getAiReportComparison(currentReport, previousReport, patient));
+
+export const getAiReportComparison = (currentReport: Report, previousReport: Report, patient: Patient, aiSettings: AiPersonalizationSettings): Promise<Message> =>
+  handleRateLimiting(() => geminiService.getAiReportComparison(currentReport, previousReport, patient, aiSettings));
 
 export const runPrescriptionGeneratorAgent = (patient: Patient, medications: { drug: string; suggestedDose: string }[], aiSettings: AiPersonalizationSettings): Promise<Message> =>
   handleRateLimiting(() => geminiService.runPrescriptionGeneratorAgent(patient, medications, aiSettings));
-  
-export const getAiSmartReportAnalysis = async (reportContent: string, reportType: Report['type']): Promise<{ suggestedTitle: string; extractedDate: string; summary: string; keyFindings: string[] }> => {
-    return handleRateLimiting(() => geminiService.getAiSmartReportAnalysis(reportContent, reportType));
+
+export const getAiSmartReportAnalysis = async (reportContent: string, reportType: Report['type'], aiSettings: AiPersonalizationSettings): Promise<{ suggestedTitle: string; extractedDate: string; summary: string; keyFindings: string[] }> => {
+  return handleRateLimiting(() => geminiService.getAiSmartReportAnalysis(reportContent, reportType, aiSettings));
+};
+
+export const getAiStructuredExtraction = async (reportContent: string, reportType: string, aiSettings: AiPersonalizationSettings): Promise<{
+  medications: Omit<MedicationDocument, 'createdAt'>[],
+  labs: Omit<LabResultDocument, 'createdAt'>[],
+  vitals: Omit<VitalSignDocument, 'createdAt'>[],
+  diagnoses: Omit<DiagnosisDocument, 'createdAt'>[]
+}> => {
+  return handleRateLimiting(() => geminiService.getAiStructuredExtraction(reportContent, reportType, aiSettings));
 };
 
 export const generateClinicalNote = async (patient: Patient, chatHistory: Message[], aiSettings: AiPersonalizationSettings, transcript?: string): Promise<ClinicalNote> => {
-    return handleRateLimiting(() => geminiService.generateClinicalNote(patient, chatHistory, aiSettings, transcript));
+  return handleRateLimiting(() => geminiService.generateClinicalNote(patient, chatHistory, aiSettings, transcript));
 };
 
-export const analyzeReasonForConsult = async (files: File[]): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return handleRateLimiting(() => utilityAgents.runConsultReasonAgent(files, ai));
+export const analyzeReasonForConsult = async (files: File[], aiSettings: AiPersonalizationSettings): Promise<string> => {
+  const ai = getAiClient(aiSettings.apiKey);
+  return handleRateLimiting(() => utilityAgents.runConsultReasonAgent(files, ai));
 };
 
 // New Multi-Agent Functions (Granular)
-export const identifyBoardParticipants = async (patient: Patient): Promise<string[]> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return handleRateLimiting(() => multiAgentSimulation.identifyBoardParticipants(patient, ai));
+export const identifyBoardParticipants = async (patient: Patient, aiSettings: AiPersonalizationSettings): Promise<string[]> => {
+  const ai = getAiClient(aiSettings.apiKey);
+  return handleRateLimiting(() => multiAgentSimulation.identifyBoardParticipants(patient, ai));
 };
 
-export const generateSpecialistReport = async (patient: Patient, specialty: string): Promise<SpecialistReport> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return handleRateLimiting(() => multiAgentSimulation.generateSpecialistOpinion(patient, specialty, ai));
+export const generateSpecialistReport = async (patient: Patient, specialty: string, aiSettings: AiPersonalizationSettings): Promise<SpecialistReport> => {
+  const ai = getAiClient(aiSettings.apiKey);
+  return handleRateLimiting(() => multiAgentSimulation.generateSpecialistOpinion(patient, specialty, ai));
 };
 
-export const consolidateBoardReports = async (patient: Patient, reports: SpecialistReport[]): Promise<{ summary: string; conflicts: string; finalPlan: string }> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return handleRateLimiting(() => multiAgentSimulation.generateBoardConsensus(patient, reports, ai));
+export const consolidateBoardReports = async (patient: Patient, reports: SpecialistReport[], aiSettings: AiPersonalizationSettings): Promise<{ summary: string; conflicts: string; finalPlan: string }> => {
+  const ai = getAiClient(aiSettings.apiKey);
+  return handleRateLimiting(() => multiAgentSimulation.generateBoardConsensus(patient, reports, ai));
 };
 
 // Legacy single-shot
-export const runMultiSpecialistReview = async (patient: Patient): Promise<MultiSpecialistReviewMessage> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return handleRateLimiting(() => multiAgentSimulation.runMultiSpecialistReviewAgent(patient, ai));
+export const runMultiSpecialistReview = async (patient: Patient, aiSettings: AiPersonalizationSettings): Promise<MultiSpecialistReviewMessage> => {
+  const ai = getAiClient(aiSettings.apiKey);
+  return handleRateLimiting(() => multiAgentSimulation.runMultiSpecialistReviewAgent(patient, ai));
 };
 
-export const initializeClinicalDebate = async (patient: Patient): Promise<{ topic: string, participants: DebateParticipant[] }> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return handleRateLimiting(() => multiAgentSimulation.initializeDebateAgent(patient, ai));
+export const initializeClinicalDebate = async (patient: Patient, aiSettings: AiPersonalizationSettings): Promise<{ topic: string, participants: DebateParticipant[] }> => {
+  const ai = getAiClient(aiSettings.apiKey);
+  return handleRateLimiting(() => multiAgentSimulation.initializeDebateAgent(patient, ai));
 };
 
-export const runNextDebateTurn = async (patient: Patient, transcript: DebateTurn[], participants: DebateParticipant[], topic: string): Promise<{ nextTurn: DebateTurn, consensusReached: boolean, consensusStatement: string | null }> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return handleRateLimiting(() => multiAgentSimulation.runNextDebateTurnAgent(patient, transcript, participants, topic, ai));
+export const runNextDebateTurn = async (patient: Patient, transcript: DebateTurn[], participants: DebateParticipant[], topic: string, aiSettings: AiPersonalizationSettings): Promise<{ nextTurn: DebateTurn, consensusReached: boolean, consensusStatement: string | null }> => {
+  const ai = getAiClient(aiSettings.apiKey);
+  return handleRateLimiting(() => multiAgentSimulation.runNextDebateTurnAgent(patient, transcript, participants, topic, ai));
 };
 
-export const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return handleRateLimiting(() => utilityAgents.runAudioTranscriptionAgent(audioBlob, ai));
+export const transcribeAudio = async (audioBlob: Blob, aiSettings: AiPersonalizationSettings): Promise<string> => {
+  const ai = getAiClient(aiSettings.apiKey);
+  return handleRateLimiting(() => utilityAgents.runAudioTranscriptionAgent(audioBlob, ai));
 };
 
-export const generateSpeech = async (text: string): Promise<string | null> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return handleRateLimiting(() => utilityAgents.generateSpeechAgent(text, ai));
+export const generateSpeech = async (text: string, aiSettings: AiPersonalizationSettings): Promise<string | null> => {
+  const ai = getAiClient(aiSettings.apiKey);
+  return handleRateLimiting(() => utilityAgents.generateSpeechAgent(text, ai));
 };
 
-export const runDeepReasoning = async (patient: Patient, query: string): Promise<TextMessage> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return handleRateLimiting(() => utilityAgents.runDeepThinkingAgent(patient, query, ai));
+export const runDeepReasoning = async (patient: Patient, query: string, aiSettings: AiPersonalizationSettings): Promise<TextMessage> => {
+  const ai = getAiClient(aiSettings.apiKey);
+  return handleRateLimiting(() => utilityAgents.runDeepThinkingAgent(patient, query, ai));
 };

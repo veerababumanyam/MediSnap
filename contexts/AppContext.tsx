@@ -3,11 +3,14 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback, u
 import type { AppState, Action } from './reducer';
 import type { Patient, Message, TextMessage, Report, UploadableFile, Feedback, AiModel, ToastNotification, ClinicalDebateMessage, MultiSpecialistReviewMessage, ClinicalTask } from '../types';
 import { appReducer, initialState } from './reducer';
-import { fetchPatients, updatePatient } from '../services/ehrService';
+import { fetchPatients, updatePatient, addReportMetadata, saveExtractedData } from '../services/ehrService';
 import * as apiManager from '../services/apiManager';
+import { uploadReportAttachment } from '../services/storageService'; // NEW
 import { getNextQuestions } from '../services/clinicalPathwaysService';
 import { getFileTypeFromFile, getLinkMetadata } from '../utils';
 import { getBriefing, setBriefing } from '../services/cacheService';
+
+import { useAuth } from './AuthContext'; // NEW
 
 declare const dwv: any;
 
@@ -37,12 +40,12 @@ interface AppContextType {
         messages: Message[];
     };
     actions: {
-        enterApp: () => void; // NEW
+        enterApp: () => void;
         selectPatient: (patientId: string) => void;
         setSearchQuery: (query: string) => void;
-        handleSaveNotes: (patientId: string, notes: string) => Promise<void>;
+        // ...
         handleUpdateTasks: (patientId: string, tasks: ClinicalTask[]) => Promise<void>;
-        handleAddReport: (patientId: string, reportData: Omit<Report, 'id'>) => Promise<void>;
+        handleAddReport: (patientId: string, reportData: Omit<Report, 'id'>, file?: File) => Promise<void>;
         handleCreateAndAnalyze: (data: any) => Promise<void>;
         toggleHuddleModal: () => void;
         selectPatientFromHuddle: (patientId: string) => void;
@@ -73,9 +76,10 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const USER_PROFILE_ID = 'p001';
+// Removed hardcoded USER_PROFILE_ID
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { user, userProfile } = useAuth(); // NEW
     const [state, dispatch] = useReducer(appReducer, initialState, (init) => {
         try {
             const savedChats = localStorage.getItem('chatHistories');
@@ -106,12 +110,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     useEffect(() => {
         const loadPatients = async () => {
+            if (!user) {
+                dispatch({ type: 'SET_PATIENTS', payload: [] });
+                return;
+            }
+
             try {
-                const patients = await fetchPatients();
-                const currentUser = patients.find(p => p.id === USER_PROFILE_ID) || patients[0];
-                if (currentUser) {
-                    dispatch({ type: 'SET_PATIENTS', payload: [currentUser] });
-                    dispatch({ type: 'SELECT_PATIENT', payload: currentUser.id });
+                const patients = await fetchPatients(user.uid);
+                // If patients found, select the first one OR if the user IS the patient, select them.
+                if (patients.length > 0) {
+                    dispatch({ type: 'SET_PATIENTS', payload: patients });
+                    // Default selection:
+                    // If we have a selectedPatientId in state that is valid, keep it? 
+                    // For now, just select the first one to be safe on load.
+                    if (!selectedPatientId || !patients.find(p => p.id === selectedPatientId)) {
+                        dispatch({ type: 'SELECT_PATIENT', payload: patients[0].id });
+                    }
+                } else {
+                    dispatch({ type: 'SET_PATIENTS', payload: [] });
                 }
             } catch (error) {
                 console.error("Failed to fetch user profile:", error);
@@ -120,7 +136,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
         };
         loadPatients();
-    }, [showToast]);
+    }, [user, showToast]);
+
+    useEffect(() => {
+        if (userProfile?.geminiApiKey && userProfile.geminiApiKey !== aiSettings.apiKey) {
+            dispatch({ type: 'UPDATE_AI_SETTINGS', payload: { apiKey: userProfile.geminiApiKey } });
+        }
+    }, [userProfile, aiSettings.apiKey]);
 
     useEffect(() => {
         localStorage.setItem('chatHistories', JSON.stringify(chatHistories));
@@ -129,11 +151,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     useEffect(() => {
         localStorage.setItem('questionHistories', JSON.stringify(questionHistories));
     }, [questionHistories]);
-    
+
     useEffect(() => {
         localStorage.setItem('cardioSnap_feedbackHistory', JSON.stringify(feedbackHistory));
     }, [feedbackHistory]);
-    
+
     useEffect(() => {
         localStorage.setItem('cardioSnap_aiSettings', JSON.stringify(aiSettings));
     }, [aiSettings]);
@@ -159,7 +181,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         briefing = await apiManager.getPreVisitBriefing(selectedPatient, aiSettings);
                         setBriefing(patientId, JSON.stringify(briefing));
                     }
-                    
+
                     briefing.id = Date.now();
                     const welcomeMsg: TextMessage = {
                         id: Date.now() - 100,
@@ -181,7 +203,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
         loadChat();
     }, [selectedPatient, aiSettings, chatHistories, showToast]);
-    
+
     useEffect(() => {
         if (!selectedPatient) return;
         const userHistory = questionHistories[selectedPatient.id] || [];
@@ -196,7 +218,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!state.isHuddleModalOpen && !state.dailyHuddleData) {
             dispatch({ type: 'SET_HUDDLE_DATA', payload: { data: null, isLoading: true, error: null } });
             try {
-                const data = await apiManager.getDailyHuddle(allPatients);
+                const data = await apiManager.getDailyHuddle(allPatients, state.aiSettings);
                 dispatch({ type: 'SET_HUDDLE_DATA', payload: { data, isLoading: false, error: null } });
             } catch (error: any) {
                 const errorMessage = error.message || "Failed to generate Brief.";
@@ -206,12 +228,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         dispatch({ type: 'TOGGLE_HUDDLE_MODAL' });
     }, [state.isHuddleModalOpen, state.dailyHuddleData, allPatients, showToast]);
-    
+
     const selectPatientFromHuddle = useCallback((patientId: string) => {
         selectPatient(patientId);
         dispatch({ type: 'TOGGLE_HUDDLE_MODAL' });
     }, [selectPatient]);
-    
+
     const setViewingReport = useCallback((payload: { patient: Patient; initialReportId: string; highlightText?: string } | null) => dispatch({ type: 'SET_VIEWING_REPORT', payload }), []);
     const toggleConsultationModal = useCallback(() => dispatch({ type: 'TOGGLE_CONSULTATION_MODAL' }), []);
     const togglePerformanceModal = useCallback(() => dispatch({ type: 'TOGGLE_PERFORMANCE_MODAL' }), []);
@@ -245,15 +267,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         dispatch({ type: 'UPDATE_PATIENT_DATA', payload: updated });
     }, [allPatients]);
 
-    const handleAddReport = useCallback(async (patientId: string, reportData: Omit<Report, 'id'>) => {
+    const handleAddReport = useCallback(async (patientId: string, reportData: Omit<Report, 'id'>, file?: File) => {
         const patient = allPatients.find(p => p.id === patientId);
         if (!patient) return;
-        const newReport = { ...reportData, id: `rep_${Date.now()}` };
+
+        let finalReport = { ...reportData, id: `rep_${Date.now()}` };
+
+        if (file) {
+            try {
+                const downloadUrl = await uploadReportAttachment(file, patientId);
+                // Update the content url if it exists
+                if (typeof finalReport.content === 'object' && finalReport.content !== null && 'url' in finalReport.content) {
+                    finalReport.content = { ...finalReport.content, url: downloadUrl };
+                }
+            } catch (error) {
+                console.error("Failed to upload report file:", error);
+                showToast("Failed to upload file, saving report without attachment.", "error");
+            }
+        }
+
+        const newReport = finalReport;
+
+        // 1. Save metadata to sub-collection (New Schema)
+        try {
+            await addReportMetadata(patientId, newReport);
+        } catch (error) {
+            console.error("Failed to save report metadata:", error);
+        }
+
+        // 2. Trigger AI Extraction in Background
+        if (newReport.content && (newReport.type === 'Lab' || newReport.type === 'Meds' || newReport.type === 'PDF')) {
+            showToast("AI is extracting clinical data from this report...", "info");
+            (async () => {
+                try {
+                    const contentForAnalysis = typeof newReport.content === 'string' ? newReport.content : (newReport as any).rawTextForAnalysis || '';
+                    if (!contentForAnalysis) return;
+
+                    const extraction = await apiManager.getAiStructuredExtraction(contentForAnalysis, newReport.type, aiSettings);
+                    await saveExtractedData(patientId, newReport.id, extraction);
+                    showToast("Clinical data extracted and saved.", "success");
+
+                    // Refresh patient data to show new meds/labs?
+                    // Ideally we should re-fetch or update state. 
+                    // For now, let's just toast.
+                } catch (err) {
+                    console.error("Background extraction failed:", err);
+                }
+            })();
+        }
+
         const updated = { ...patient, reports: [...patient.reports, newReport] };
         await updatePatient(updated);
         dispatch({ type: 'UPDATE_PATIENT_DATA', payload: updated });
-    }, [allPatients]);
-    
+    }, [allPatients, showToast]);
+
     const handleCreateAndAnalyze = useCallback(async (data: any) => {
         dispatch({ type: 'TOGGLE_CONSULTATION_MODAL' });
         showToast("New profile created.", "success");
@@ -262,7 +329,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const handleSendMessage = useCallback(async (query: string, files: File[] = [], targetPatientId?: string) => {
         const patientIdToUse = targetPatientId || selectedPatientId;
         if (!patientIdToUse) return;
-        
+
         const patient = allPatients.find(p => p.id === patientIdToUse);
         if (!patient) return;
 
@@ -271,7 +338,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         try {
             if (files.length > 0) {
-                 const processedFiles: UploadableFile[] = await Promise.all(files.map(async file => {
+                const processedFiles: UploadableFile[] = await Promise.all(files.map(async file => {
                     const isDicom = file.name.toLowerCase().endsWith('.dcm') || file.type === 'application/dicom';
                     if (isDicom) return renderDicomToJpegForUpload(file);
                     const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -283,70 +350,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     return { name: file.name, mimeType: file.type, base64Data: dataUrl.split(',')[1], previewUrl: dataUrl };
                 }));
                 const userMsg = { id: Date.now(), sender: 'user' as const, type: 'multi_file' as const, text: query, files: processedFiles };
-                dispatch({ type: 'ADD_MESSAGE', payload: { patientId: patientIdToUse, message: userMsg }});
+                dispatch({ type: 'ADD_MESSAGE', payload: { patientId: patientIdToUse, message: userMsg } });
                 const aiMsg = await apiManager.runMultiModalAnalysisAgent(query, processedFiles, patient, aiSettings);
                 aiMsg.id = Date.now() + 1;
                 dispatch({ type: 'ADD_MESSAGE', payload: { patientId: patientIdToUse, message: aiMsg } });
             } else {
                 const userMsg = { id: Date.now(), sender: 'user' as const, type: 'text' as const, text: query };
-                dispatch({ type: 'ADD_MESSAGE', payload: { patientId: patientIdToUse, message: userMsg }});
-                
+                dispatch({ type: 'ADD_MESSAGE', payload: { patientId: patientIdToUse, message: userMsg } });
+
                 // --- DEEP THINKING CHECK ---
                 let aiMsg;
                 if (query.toLowerCase().startsWith('(thinking...)')) {
                     const cleanQuery = query.replace('(Thinking...)', '').trim();
-                    aiMsg = await apiManager.runDeepReasoning(patient, cleanQuery);
+                    aiMsg = await apiManager.runDeepReasoning(patient, cleanQuery, aiSettings);
                 } else {
                     aiMsg = await apiManager.getAiResponse(query, patient, aiSettings);
                 }
-                
+
                 aiMsg.id = Date.now() + 1;
-                dispatch({ type: 'ADD_MESSAGE', payload: { patientId: patientIdToUse, message: aiMsg }});
+                dispatch({ type: 'ADD_MESSAGE', payload: { patientId: patientIdToUse, message: aiMsg } });
             }
         } catch (error: any) {
             console.error("Send message error:", error);
             const errorMessage = error.message || 'Failed to get AI response.';
             showToast(errorMessage, 'error');
-            const errorMsg: TextMessage = { id: Date.now() + 1, sender: 'ai', type: 'text', text: `Sorry, an error occurred: ${errorMessage}`};
-            dispatch({ type: 'ADD_MESSAGE', payload: { patientId: patientIdToUse, message: errorMsg }});
+            const errorMsg: TextMessage = { id: Date.now() + 1, sender: 'ai', type: 'text', text: `Sorry, an error occurred: ${errorMessage}` };
+            dispatch({ type: 'ADD_MESSAGE', payload: { patientId: patientIdToUse, message: errorMsg } });
         } finally {
             dispatch({ type: 'SET_CHAT_LOADING', payload: false });
         }
     }, [selectedPatientId, allPatients, aiSettings, showToast]);
-    
+
     const handleAnalyzeReports = useCallback(async (reportIds: string[]) => {
         if (!selectedPatient) return;
         const reports = selectedPatient.reports.filter(r => reportIds.includes(r.id));
         const userQuery = `Analyze ${reportIds.length} selected report(s)`;
         const userMsg: TextMessage = { id: Date.now(), sender: 'user', type: 'text', text: userQuery };
-        dispatch({ type: 'ADD_MESSAGE', payload: { patientId: selectedPatient.id, message: userMsg }});
+        dispatch({ type: 'ADD_MESSAGE', payload: { patientId: selectedPatient.id, message: userMsg } });
         dispatch({ type: 'SET_CHAT_LOADING', payload: true });
         try {
             let aiMsg: Message;
             if (reports.length === 1) aiMsg = await apiManager.getAiSingleReportAnalysis(reports[0], selectedPatient, aiSettings);
             else aiMsg = await apiManager.getAiMultiReportAnalysis(reports, selectedPatient, aiSettings);
             aiMsg.id = Date.now() + 1;
-            dispatch({ type: 'ADD_MESSAGE', payload: { patientId: selectedPatient.id, message: aiMsg }});
+            dispatch({ type: 'ADD_MESSAGE', payload: { patientId: selectedPatient.id, message: aiMsg } });
         } catch (error: any) {
             const errorMessage = error.message || 'Failed to analyze reports.';
             showToast(errorMessage, 'error');
             const errorMsg: TextMessage = { id: Date.now() + 1, sender: 'ai', type: 'text', text: `Sorry, I was unable to analyze the selected reports. ${errorMessage}` };
-            dispatch({ type: 'ADD_MESSAGE', payload: { patientId: selectedPatient.id, message: errorMsg }});
+            dispatch({ type: 'ADD_MESSAGE', payload: { patientId: selectedPatient.id, message: errorMsg } });
         } finally {
             dispatch({ type: 'SET_CHAT_LOADING', payload: false });
         }
     }, [selectedPatient, aiSettings, showToast]);
-    
+
     const handleCompareReports = useCallback(async (reportIds: string[]) => {
         if (!selectedPatient || reportIds.length !== 2) return;
-        const reports = selectedPatient.reports.filter(r => reportIds.includes(r.id)).sort((a,b) => b.date.localeCompare(a.date));
+        const reports = selectedPatient.reports.filter(r => reportIds.includes(r.id)).sort((a, b) => b.date.localeCompare(a.date));
         if (reports.length !== 2) return;
         const userQuery = `Compare ${reports[0].title} and ${reports[1].title}`;
         const userMsg: TextMessage = { id: Date.now(), sender: 'user', type: 'text', text: userQuery };
         dispatch({ type: 'ADD_MESSAGE', payload: { patientId: selectedPatient.id, message: userMsg } });
         dispatch({ type: 'SET_CHAT_LOADING', payload: true });
         try {
-            const aiMsg = await apiManager.getAiReportComparison(reports[0], reports[1], selectedPatient);
+            const aiMsg = await apiManager.getAiReportComparison(reports[0], reports[1], selectedPatient, aiSettings);
             aiMsg.id = Date.now() + 1;
             dispatch({ type: 'ADD_MESSAGE', payload: { patientId: selectedPatient.id, message: aiMsg } });
         } catch (error: any) {
@@ -358,7 +425,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             dispatch({ type: 'SET_CHAT_LOADING', payload: false });
         }
     }, [selectedPatient, showToast]);
-    
+
     const handleGeneratePrescription = useCallback(async (meds: { drug: string; suggestedDose: string }[]) => {
         if (!selectedPatient) return;
         const userMsg: TextMessage = { id: Date.now(), sender: 'user', type: 'text', text: "Generate prescription." };
@@ -382,7 +449,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!selectedPatient) return;
         dispatch({ type: 'TOGGLE_NOTE_MODAL' });
         dispatch({ type: 'SET_NOTE_GENERATING', payload: true });
-        
+
         try {
             const note = await apiManager.generateClinicalNote(selectedPatient, messages, aiSettings, transcript);
             dispatch({ type: 'SET_DRAFT_NOTE', payload: note });
@@ -398,7 +465,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!selectedPatient) return;
         const userMsg: TextMessage = { id: Date.now(), sender: 'user', type: 'text', text: "Run a full Multi-Specialist Review board on my case." };
         dispatch({ type: 'ADD_MESSAGE', payload: { patientId: selectedPatient.id, message: userMsg } });
-        
+
         const msgId = Date.now() + 1;
         let currentMessage: MultiSpecialistReviewMessage = {
             id: msgId,
@@ -411,14 +478,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         dispatch({ type: 'ADD_MESSAGE', payload: { patientId: selectedPatient.id, message: currentMessage } });
 
         try {
-            const specialties = await apiManager.identifyBoardParticipants(selectedPatient);
+            const specialties = await apiManager.identifyBoardParticipants(selectedPatient, aiSettings);
             for (const specialty of specialties) {
-                const report = await apiManager.generateSpecialistReport(selectedPatient, specialty);
+                const report = await apiManager.generateSpecialistReport(selectedPatient, specialty, aiSettings);
                 currentMessage = { ...currentMessage, specialistReports: [...currentMessage.specialistReports, report] };
                 dispatch({ type: 'UPDATE_MESSAGE', payload: { patientId: selectedPatient.id, message: currentMessage } });
                 await new Promise(resolve => setTimeout(resolve, 800));
             }
-            const consensus = await apiManager.consolidateBoardReports(selectedPatient, currentMessage.specialistReports);
+            const consensus = await apiManager.consolidateBoardReports(selectedPatient, currentMessage.specialistReports, aiSettings);
             currentMessage = { ...currentMessage, isLive: false, consolidatedReport: consensus };
             dispatch({ type: 'UPDATE_MESSAGE', payload: { patientId: selectedPatient.id, message: currentMessage } });
 
@@ -434,7 +501,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!selectedPatient) return;
         const userMsg: TextMessage = { id: Date.now(), sender: 'user', type: 'text', text: "Start a Grand Rounds debate for this case." };
         dispatch({ type: 'ADD_MESSAGE', payload: { patientId: selectedPatient.id, message: userMsg } });
-        
+
         const debateMsgId = Date.now() + 1;
         const placeholderDebate: ClinicalDebateMessage = {
             id: debateMsgId,
@@ -450,7 +517,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         dispatch({ type: 'ADD_MESSAGE', payload: { patientId: selectedPatient.id, message: placeholderDebate } });
 
         try {
-            const initData = await apiManager.initializeClinicalDebate(selectedPatient);
+            const initData = await apiManager.initializeClinicalDebate(selectedPatient, aiSettings);
             let currentDebateState: ClinicalDebateMessage = {
                 ...placeholderDebate,
                 title: `Grand Rounds: ${initData.topic}`,
@@ -461,12 +528,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             dispatch({ type: 'UPDATE_MESSAGE', payload: { patientId: selectedPatient.id, message: currentDebateState } });
 
             let turns = 0;
-            const MAX_TURNS = 12; 
+            const MAX_TURNS = 12;
             let consensusReached = false;
 
             while (!consensusReached && turns < MAX_TURNS) {
                 turns++;
-                const result = await apiManager.runNextDebateTurn(selectedPatient, currentDebateState.transcript, currentDebateState.participants, currentDebateState.topic);
+                const result = await apiManager.runNextDebateTurn(selectedPatient, currentDebateState.transcript, currentDebateState.participants, currentDebateState.topic, aiSettings);
                 currentDebateState = {
                     ...currentDebateState,
                     transcript: [...currentDebateState.transcript, result.nextTurn],
@@ -489,7 +556,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             dispatch({ type: 'UPDATE_MESSAGE', payload: { patientId: selectedPatient.id, message: { ...placeholderDebate, title: 'Debate Error', isLive: false, topic: errorMessage } } });
         }
     }, [selectedPatient, showToast]);
-    
+
     const handleAnalyzeSingleReport = useCallback((reportId: string) => handleAnalyzeReports([reportId]), [handleAnalyzeReports]);
 
     const value = useMemo(() => ({

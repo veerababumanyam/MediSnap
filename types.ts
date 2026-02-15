@@ -1,17 +1,31 @@
 
+export type UserRole = 'doctor' | 'nurse' | 'patient' | 'admin';
+
+export interface UserProfile {
+    uid: string;
+    email: string;
+    role: UserRole;
+    geminiApiKey?: string;
+    createdAt: number;
+    displayName: string;
+    photoURL: string;
+    patients?: string[]; // IDs of patients managed by this user (for doctors)
+    healthRecordId?: string; // ID of health record (for patients)
+}
 export interface Report {
-  id: string;
-  type: 'Lab' | 'ECG' | 'Echo' | 'Imaging' | 'Meds' | 'Cath' | 'Device' | 'HF Device' | 'CTA' | 'DICOM' | 'PDF' | 'Link' | 'Pathology' | 'MRI' | 'Genomics' | 'Procedure' | 'LiveSession';
-  date: string; // YYYY-MM-DD
-  title: string;
-  content: string | { type: 'image'; url: string; } | { type: 'pdf'; url: string; rawText: string; } | { type: 'dicom'; url: string; } | { type: 'link'; url: string; metadata?: any } | { type: 'live_session'; transcript: string; biomarkers: any[] };
-  aiSummary?: string;
-  keyFindings?: string[];
+    id: string;
+    type: 'Lab' | 'ECG' | 'Echo' | 'Imaging' | 'Meds' | 'Cath' | 'Device' | 'HF Device' | 'CTA' | 'DICOM' | 'PDF' | 'Link' | 'Pathology' | 'MRI' | 'Genomics' | 'Procedure' | 'LiveSession';
+    date: string; // YYYY-MM-DD
+    title: string;
+    content: string | { type: 'image'; url: string; } | { type: 'pdf'; url: string; rawText: string; } | { type: 'dicom'; url: string; } | { type: 'link'; url: string; metadata?: any } | { type: 'live_session'; transcript: string; biomarkers: any[] };
+    aiSummary?: string;
+    keyFindings?: string[];
+    rawTextForAnalysis?: string | null; // NEW: For AI extraction
 }
 
 export interface VitalsLog {
-  date: string; // YYYY-MM-DD
-  vitals: string; // e.g., "BP 120/80, HR 70, O2 Sat 98%"
+    date: string; // YYYY-MM-DD
+    vitals: string; // e.g., "BP 120/80, HR 70, O2 Sat 98%"
 }
 
 export interface MedicalHistoryItem {
@@ -27,26 +41,26 @@ export interface ClinicalTask {
 }
 
 export interface Patient {
-  id: string;
-  name: string;
-  age: number;
-  gender: 'Male' | 'Female';
-  weight: number; // in kg
-  allergies: string[];
-  medicalHistory: MedicalHistoryItem[];
-  criticalAlerts?: string[];
-  appointmentTime: string; // Format 'HH:MM'
-  pendingLabs?: string[]; // NEW: For "Result Pending" visual cue
-  currentStatus: {
-    condition: string;
-    conditionIcd10?: string;
-    vitals: string;
-    medications: string[];
-  };
-  reports: Report[];
-  notes?: string;
-  vitalsLog?: VitalsLog[];
-  tasks?: ClinicalTask[];
+    id: string;
+    name: string;
+    age: number;
+    gender: 'Male' | 'Female';
+    weight: number; // in kg
+    allergies: string[];
+    medicalHistory: MedicalHistoryItem[];
+    criticalAlerts?: string[];
+    appointmentTime: string; // Format 'HH:MM'
+    pendingLabs?: string[]; // NEW: For "Result Pending" visual cue
+    currentStatus: {
+        condition: string;
+        conditionIcd10?: string;
+        vitals: string;
+        medications: string[];
+    };
+    reports: Report[];
+    notes?: string;
+    vitalsLog?: VitalsLog[];
+    tasks?: ClinicalTask[];
 }
 
 export interface SuggestedAction {
@@ -56,36 +70,36 @@ export interface SuggestedAction {
 }
 
 export interface TextMessage {
-  id: number;
-  sender: 'user' | 'ai';
-  type: 'text';
-  text: string;
-  suggestedAction?: SuggestedAction;
+    id: number;
+    sender: 'user' | 'ai';
+    type: 'text';
+    text: string;
+    suggestedAction?: SuggestedAction;
 }
 
 export interface ImageMessage {
-  id: number;
-  sender: 'user';
-  type: 'image';
-  base64Data: string;
-  mimeType: string;
+    id: number;
+    sender: 'user';
+    type: 'image';
+    base64Data: string;
+    mimeType: string;
 }
 
 export interface UploadableFile {
-  name: string;
-  mimeType: string;
-  base64Data: string;
-  previewUrl: string; // Used for client-side thumbnail rendering
-  isLink?: boolean; // NEW: Flag for external links
-  sourceUrl?: string; // NEW: The original URL
+    name: string;
+    mimeType: string;
+    base64Data: string;
+    previewUrl: string; // Used for client-side thumbnail rendering
+    isLink?: boolean; // NEW: Flag for external links
+    sourceUrl?: string; // NEW: The original URL
 }
 
 export interface MultiFileMessage {
-  id: number;
-  sender: 'user';
-  type: 'multi_file';
-  text: string;
-  files: UploadableFile[];
+    id: number;
+    sender: 'user';
+    type: 'multi_file';
+    text: string;
+    files: UploadableFile[];
 }
 
 export interface TrendChartDataPoint {
@@ -145,12 +159,12 @@ export interface GdmtChecklistMessage {
     suggestedAction?: SuggestedAction;
 }
 
-export type ComparisonChangeType = 
-    | 'Improved' 
-    | 'Worsened (Critical)' 
-    | 'Worsened (Minor)' 
-    | 'Unchanged' 
-    | 'New Finding' 
+export type ComparisonChangeType =
+    | 'Improved'
+    | 'Worsened (Critical)'
+    | 'Worsened (Minor)'
+    | 'Unchanged'
+    | 'New Finding'
     | 'Resolved';
 
 export interface ReportComparisonRow {
@@ -338,13 +352,13 @@ export interface CardiacBiomarkerMessage {
 export type AiModel = 'speed' | 'accuracy';
 
 export interface ConsultationPayload {
-  files: {
-    name: string;
-    base64Data: string;
-    mimeType: string;
-  }[];
-  prompt: string;
-  model: AiModel;
+    files: {
+        name: string;
+        base64Data: string;
+        mimeType: string;
+    }[];
+    prompt: string;
+    model: AiModel;
 }
 
 export interface HighRiskPatient {
@@ -538,37 +552,37 @@ export interface UniversalSpecialistMessage {
 
 
 export interface ReportViewerMessage {
-  id: number;
-  sender: 'ai';
-  type: 'report_viewer';
-  title: string;
-  reportId: string;
+    id: number;
+    sender: 'ai';
+    type: 'report_viewer';
+    title: string;
+    reportId: string;
 }
 
 export interface SmartSummaryHighlight {
-  icon: 'alert' | 'labs' | 'meds' | 'vitals' | 'echo';
-  text: string;
+    icon: 'alert' | 'labs' | 'meds' | 'vitals' | 'echo';
+    text: string;
 }
 
 export interface SmartSummaryTableItem {
-  metric: string;
-  value: string;
-  trend?: 'up' | 'down' | 'stable';
-  verification?: SourceVerification;
+    metric: string;
+    value: string;
+    trend?: 'up' | 'down' | 'stable';
+    verification?: SourceVerification;
 }
 
 export interface SmartSummaryMessage {
-  id: number;
-  sender: 'ai';
-  type: 'smart_summary';
-  title: string;
-  highlights: SmartSummaryHighlight[];
-  tables: {
-      title: string;
-      items: SmartSummaryTableItem[];
-  }[];
-  narrativeSummary: string;
-  suggestedAction?: SuggestedAction;
+    id: number;
+    sender: 'ai';
+    type: 'smart_summary';
+    title: string;
+    highlights: SmartSummaryHighlight[];
+    tables: {
+        title: string;
+        items: SmartSummaryTableItem[];
+    }[];
+    narrativeSummary: string;
+    suggestedAction?: SuggestedAction;
 }
 
 export interface PrescriptionMedication {
@@ -676,52 +690,53 @@ export interface MedicationEvent {
     details: string;
 }
 
-export type Message = 
-  | TextMessage 
-  | ImageMessage
-  | MultiFileMessage
-  | TrendChartMessage 
-  | GdmtChecklistMessage 
-  | ReportComparisonMessage
-  | DifferentialDiagnosisMessage
-  | RiskStratificationMessage
-  | ContraindicationMessage
-  | DosageOptimizationMessage
-  | EjectionFractionTrendMessage
-  | ArrhythmiaAnalysisMessage
-  | BloodPressureAnalysisMessage
-  | CardiacBiomarkerMessage
-  | ReportViewerMessage
-  | InterventionalCardiologyMessage
-  | EpDeviceReportMessage
-  | AdvancedHeartFailureMessage
-  | CtaAnalysisMessage
-  | SmartSummaryMessage
-  | PrescriptionMessage
-  | VitalTrendsMessage
-  | HccCodingMessage
-  | MultiSpecialistReviewMessage
-  | ClinicalDebateMessage
-  | NeurologyMessage
-  | OncologyMessage
-  | UniversalSpecialistMessage;
+export type Message =
+    | TextMessage
+    | ImageMessage
+    | MultiFileMessage
+    | TrendChartMessage
+    | GdmtChecklistMessage
+    | ReportComparisonMessage
+    | DifferentialDiagnosisMessage
+    | RiskStratificationMessage
+    | ContraindicationMessage
+    | DosageOptimizationMessage
+    | EjectionFractionTrendMessage
+    | ArrhythmiaAnalysisMessage
+    | BloodPressureAnalysisMessage
+    | CardiacBiomarkerMessage
+    | ReportViewerMessage
+    | InterventionalCardiologyMessage
+    | EpDeviceReportMessage
+    | AdvancedHeartFailureMessage
+    | CtaAnalysisMessage
+    | SmartSummaryMessage
+    | PrescriptionMessage
+    | VitalTrendsMessage
+    | HccCodingMessage
+    | MultiSpecialistReviewMessage
+    | ClinicalDebateMessage
+    | NeurologyMessage
+    | OncologyMessage
+    | UniversalSpecialistMessage;
 
 
 // --- FEEDBACK & PERSONALIZATION TYPES ---
 
 export interface Feedback {
-  id: number;
-  messageId: number;
-  patientId: string;
-  rating: 'good' | 'bad';
-  correction?: string;
-  timestamp: number;
-  originalText: string;
+    id: number;
+    messageId: number;
+    patientId: string;
+    rating: 'good' | 'bad';
+    correction?: string;
+    timestamp: number;
+    originalText: string;
 }
 
 export interface AiPersonalizationSettings {
-  verbosity: 'concise' | 'default' | 'detailed';
-  tone: 'formal' | 'default' | 'collaborative';
+    verbosity: 'concise' | 'default' | 'detailed';
+    tone: 'formal' | 'default' | 'collaborative';
+    apiKey?: string;
 }
 
 // --- UI NOTIFICATION TYPES ---

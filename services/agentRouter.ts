@@ -51,96 +51,15 @@ const determineSpecialty = async (query: string, ai: GoogleGenAI): Promise<strin
 /**
  * Routes a user query to the appropriate AI agent.
  */
+import { sendMessageToBackend } from './backendAgent';
+
+/**
+ * Routes a user query to the appropriate AI agent.
+ */
 export const agentRouter = async (query: string, patient: Patient, aiSettings: AiPersonalizationSettings): Promise<Message> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const lowerQuery = query.toLowerCase();
+    // We now route everything to the Backend ADK Agent.
+    // The backend agent handles specialty routing via tools using the patient context we pass.
 
-    // 1. FAST PATH: Report Display (Regex)
-    if (reportQueryRegex.test(lowerQuery)) {
-        console.log(`[AgentRouter] Routing to Report Display Agent (Fast Path)`);
-        return await agents.runReportDisplayAgent(patient, query, ai);
-    }
-
-    // 2. KEYWORD PATH: Specific High-Confidence Agents
-    if (lowerQuery.includes('medical board') || lowerQuery.includes('specialist review')) return await agents.runMultiSpecialistReviewAgent(patient, ai);
-    if (lowerQuery.includes('debate') || lowerQuery.includes('grand rounds')) return await agents.runClinicalDebateAgent(patient, ai);
-    if (lowerQuery.includes('hcc') || lowerQuery.includes('coding')) return await agents.runHccCodingAgent(patient, query, ai);
-    if (lowerQuery.includes('compare')) return await agents.runReportComparisonAgentFromHistory(patient, query, ai);
-    if (lowerQuery.includes('trend') || lowerQuery.includes('plot')) return await agents.runTrendAnalysisAgent(patient, query, ai);
-    if (lowerQuery.includes('summarize') || lowerQuery.includes('briefing')) return await agents.runSmartSummaryAgent(patient, ai, aiSettings);
-
-    // 3. CLASSIFIER PATH: The "Brain" of the Multi-Specialty System
-    console.log(`[AgentRouter] Classifying intent for: "${query}"`);
-    const specialty = await determineSpecialty(query, ai);
-    console.log(`[AgentRouter] Detected Specialty: ${specialty}`);
-
-    switch (specialty) {
-        case 'Cardiology':
-            // Route to sub-agents if specific keywords match, else general cardio
-            if (lowerQuery.includes('cath') || lowerQuery.includes('angiogram')) return await agents.runInterventionalCardiologyAgent(patient, query, ai);
-            if (lowerQuery.includes('device') || lowerQuery.includes('icd') || lowerQuery.includes('pacemaker')) return await agents.runEpAgent(patient, query, ai);
-            if (lowerQuery.includes('lvad')) return await agents.runAdvancedHfAgent(patient, query, ai);
-            if (lowerQuery.includes('cta')) return await agents.runCtaAnalysisAgent(patient, query, ai, aiSettings);
-            if (lowerQuery.includes('ecg') || lowerQuery.includes('ekg')) return await agents.runEcgAnalysisAgent(patient, query, ai);
-            if (lowerQuery.includes('echo')) return await agents.runEjectionFractionTrendAgent(patient, query, ai);
-            return await agents.runGeneralCardiologyQueryAgent(patient, query, ai, aiSettings);
-
-        case 'Neurology':
-            return await agents.runNeurologyAgent(patient, query, ai);
-
-        case 'Oncology':
-            return await agents.runOncologyAgent(patient, query, ai);
-
-        case 'Gastroenterology':
-            return await agents.runGastroenterologyAgent(patient, query, ai);
-
-        case 'Pulmonology':
-            return await agents.runPulmonologyAgent(patient, query, ai);
-
-        case 'Endocrinology':
-            return await agents.runEndocrinologyAgent(patient, query, ai);
-
-        case 'Orthopedics':
-            return await agents.runOrthopedicsAgent(patient, query, ai);
-
-        case 'Dermatology':
-            return await agents.runDermatologyAgent(patient, query, ai);
-
-        case 'Nephrology':
-            return await agents.runNephrologyAgent(patient, query, ai);
-
-        case 'Hematology':
-            return await agents.runHematologyAgent(patient, query, ai);
-
-        case 'Rheumatology':
-            return await agents.runRheumatologyAgent(patient, query, ai);
-
-        case 'Infectious Disease':
-            return await agents.runInfectiousDiseaseAgent(patient, query, ai);
-
-        case 'Psychiatry':
-            return await agents.runPsychiatryAgent(patient, query, ai);
-
-        case 'Urology':
-            return await agents.runUrologyAgent(patient, query, ai);
-
-        case 'Ophthalmology':
-            return await agents.runOphthalmologyAgent(patient, query, ai);
-
-        case 'Geriatrics':
-            return await agents.runGeriatricsAgent(patient, query, ai);
-            
-        case 'DeepReasoning':
-            return await agents.runDeepThinkingAgent(patient, query, ai);
-
-        case 'General':
-            // Use the general agent logic
-            if (lowerQuery.includes('drug') || lowerQuery.includes('medication')) return await agents.runGeneralQueryAgent(query, patient, ai, aiSettings);
-            return await agents.runGeneralCardiologyQueryAgent(patient, query, ai, aiSettings); // Fallback to main clinical agent
-
-        default:
-            // For any other rare specialty, use the Universal Agent dynamically
-            console.log(`[AgentRouter] Routing to Universal Specialist Agent for ${specialty}`);
-            return await agents.runUniversalSpecialistAgent(patient, query, specialty, ai);
-    }
+    console.log(`[AgentRouter] Forwarding query to Backend ADK Agent: "${query}"`);
+    return await sendMessageToBackend(query, patient);
 };
