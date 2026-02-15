@@ -35,7 +35,7 @@ function initializeFirebase() {
     });
     console.log('✅ Firebase Admin SDK initialized\n');
   } catch (error) {
-    console.error('❌ Failed to initialize Firebase Admin SDK:', error.message);
+    console.error('❌ Failed to initialize Firebase Admin SDK:', error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 }
@@ -51,6 +51,7 @@ async function cleanupLegacyRoles() {
   try {
     // Query all users from Firestore
     const usersSnapshot = await db.collection('users').get();
+    /** @type {Array<{uid: string, email: string, role: string, displayName: string}>} */
     const legacyUsers = [];
 
     // Filter users with legacy roles
@@ -100,7 +101,7 @@ async function cleanupLegacyRoles() {
         console.log(`✅ Deleted: ${user.email} (${user.role})`);
         deletedCount++;
       } catch (error) {
-        console.error(`❌ Failed to delete ${user.email}:`, error.message);
+        console.error(`❌ Failed to delete ${user.email}:`, error instanceof Error ? error.message : String(error));
         failedCount++;
       }
     }
@@ -111,7 +112,7 @@ async function cleanupLegacyRoles() {
     console.log(`   Total: ${legacyUsers.length}`);
 
   } catch (error) {
-    console.error('❌ Error during cleanup:', error.message);
+    console.error('❌ Error during cleanup:', error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 }
@@ -124,6 +125,6 @@ cleanupLegacyRoles()
     process.exit(0);
   })
   .catch((error) => {
-    console.error('❌ Cleanup failed:', error);
+    console.error('❌ Cleanup failed:', error instanceof Error ? error.message : String(error));
     process.exit(1);
   });
