@@ -282,7 +282,7 @@ export const LiveAssistant: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey: aiSettings.apiKey });
 
       const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+        model: 'gemini-3-flash-preview',
         callbacks: {
           onopen: () => {
             setIsSessionActive(true);
@@ -422,7 +422,7 @@ export const LiveAssistant: React.FC = () => {
         },
         config: {
           responseModalities: [Modality.AUDIO],
-          inputAudioTranscription: { model: "gemini-2.5-flash-native-audio-preview-12-2025" },
+          inputAudioTranscription: { model: "gemini-3-flash-preview" },
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
           systemInstruction: getSystemInstruction(),
           tools: [{ functionDeclarations: tools }]

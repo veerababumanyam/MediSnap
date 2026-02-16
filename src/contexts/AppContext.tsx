@@ -3,9 +3,10 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback, u
 import type { AppState, Action } from './reducer';
 import type { Patient, Message, TextMessage, Report, UploadableFile, Feedback, AiModel, ToastNotification, ClinicalDebateMessage, MultiSpecialistReviewMessage, ClinicalTask } from '../types';
 import { appReducer, initialState } from './reducer';
-import { fetchPatients, updatePatient, addReportMetadata, saveExtractedData, createPatient } from '../services/ehrService';
+import { fetchPatients, updatePatient, addReportMetadata, saveExtractedData, createPatient, fetchExtractedData, getPatient, deleteReport } from '../services/ehrService';
 import * as apiManager from '../services/apiManager';
 import { uploadReportAttachment } from '../services/storageService'; // NEW
+import { runExtractionPipeline, type ExtractionProgress, type ExtractedPatientData } from '../services/documentExtractionPipeline';
 import { getNextQuestions } from '../services/clinicalPathwaysService';
 import { getFileTypeFromFile, getLinkMetadata } from '../utils';
 import { getBriefing, setBriefing } from '../services/cacheService';
@@ -48,6 +49,10 @@ interface AppContextType {
         handleUpdateTasks: (patientId: string, tasks: ClinicalTask[]) => Promise<void>;
         handleSaveNotes: (patientId: string, notes: string) => Promise<void>;
         handleAddReport: (patientId: string, reportData: Omit<Report, 'id'>, file?: File) => Promise<void>;
+        handleDeleteReport: (patientId: string, reportId: string) => Promise<void>;
+        loadExtractedData: (patientId: string) => Promise<ExtractedPatientData>;
+        extractedData: ExtractedPatientData | null;
+        extractionProgress: ExtractionProgress | null;
         handleCreateAndAnalyze: (data: any) => Promise<void>;
         toggleHuddleModal: () => void;
         selectPatientFromHuddle: (patientId: string) => void;
@@ -73,6 +78,7 @@ interface AppContextType {
         togglePatientList: () => void;
         toggleDashboard: () => void;
         toggleLiveMode: () => void;
+        toggleSettings: () => void; // NEW
     }
 }
 
@@ -102,6 +108,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const { selectedPatientId, allPatients, chatHistories, questionHistories, aiSettings, feedbackHistory } = state;
 
+    // Extraction state
+    const [extractedData, setExtractedData] = React.useState<ExtractedPatientData | null>(null);
+    const [extractionProgress, setExtractionProgress] = React.useState<ExtractionProgress | null>(null);
+
     const showToast = useCallback((message: string, type: ToastNotification['type'] = 'info') => {
         const newToast: ToastNotification = { id: Date.now(), message, type };
         dispatch({ type: 'ADD_TOAST', payload: newToast });
@@ -123,22 +133,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
                 // If user is a patient, inject themselves into the list and select
                 if (userProfile?.role === 'patient') {
-                    const selfAsPatient: Patient = {
-                        id: user.uid,
-                        name: userProfile.displayName || 'Me',
-                        age: (userProfile as any).age || 0,
-                        gender: (userProfile as any).gender || 'Female',
-                        weight: 70,
-                        allergies: (userProfile as any).allergies || [],
-                        medicalHistory: (userProfile as any).medicalHistory || [],
-                        appointmentTime: '09:00',
-                        currentStatus: (userProfile as any).currentStatus || {
-                            condition: 'Wellness Check',
-                            vitals: '',
-                            medications: []
-                        },
-                        reports: (userProfile as any).reports || []
-                    };
+                    // Try to fetch full patient profile (including reports/meds) from Firestore service
+                    let selfAsPatient: Patient | null = null;
+                    try {
+                        selfAsPatient = await getPatient(user.uid);
+                    } catch (err) {
+                        console.warn('Failed to fetch self-patient data:', err);
+                    }
+
+                    // Fallback: If no patient data found (new user), construct skeleton from user profile
+                    if (!selfAsPatient) {
+                        selfAsPatient = {
+                            id: user.uid,
+                            name: userProfile.displayName || 'Me',
+                            age: userProfile.age ?? 0,
+                            gender: userProfile.gender || 'Female',
+                            weight: 70,
+                            allergies: (userProfile as any).allergies || [],
+                            medicalHistory: (userProfile as any).medicalHistory || [],
+                            appointmentTime: '09:00',
+                            currentStatus: (userProfile as any).currentStatus || {
+                                condition: 'Wellness Check',
+                                vitals: '',
+                                medications: []
+                            },
+                            reports: []
+                        };
+                    }
 
                     if (!patients.find(p => p.id === user.uid)) {
                         patients = [selfAsPatient, ...patients];
@@ -181,21 +202,98 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, [user, updateGeminiApiKey]);
 
-    useEffect(() => {
-        localStorage.setItem('chatHistories', JSON.stringify(chatHistories));
-    }, [chatHistories]);
+    // -------------------------------------------------------------------------
+    // Safe LocalStorage Management (Prevents Quota Crashes)
+    // -------------------------------------------------------------------------
+
+    const pruneChatHistory = useCallback((history: Record<string, Message[]>): Record<string, Message[]> => {
+        const pruned: Record<string, Message[]> = {};
+        for (const [patientId, messages] of Object.entries(history)) {
+            // Strategy 1: Limit to last 50 messages per patient
+            let recentMessages = messages;
+            if (messages.length > 50) {
+                recentMessages = messages.slice(-50);
+            }
+
+            // Strategy 2: Remove base64 data from heavy message types
+            pruned[patientId] = recentMessages.map(msg => {
+                if (msg.type === 'image' && (msg as any).base64Data) {
+                    return { ...msg, base64Data: '' };
+                }
+                if (msg.type === 'multi_file' && (msg as any).files) {
+                    return {
+                        ...msg,
+                        files: (msg as any).files.map((f: any) => ({ ...f, base64Data: '' }))
+                    };
+                }
+                return msg;
+            });
+        }
+        return pruned;
+    }, []);
+
+    const safeSetItem = useCallback((key: string, value: any, pruneStrategy?: (val: any) => any) => {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch (error: any) {
+            // Check for QuotaExceededError
+            if (error.name === 'QuotaExceededError' || error.code === 22 || error.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+                console.warn(`LocalStorage quota exceeded saving '${key}'. Attempting cleanup...`);
+                showToast("Storage limit reached. Optimizing space...", "warning");
+                
+                // 1. Attempt to clear temporary caches from services
+                const cachePrefixes = ['daily_huddle_', 'analysis_cache_', 'briefing_cache_', 'med_search_'];
+                const keysToRemove: string[] = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && cachePrefixes.some(prefix => k.startsWith(prefix))) {
+                        keysToRemove.push(k);
+                    }
+                }
+                
+                if (keysToRemove.length > 0) {
+                    keysToRemove.forEach(k => localStorage.removeItem(k));
+                    console.info(`Cleared ${keysToRemove.length} temporary cache items to free space.`);
+                    
+                    try {
+                        localStorage.setItem(key, JSON.stringify(value));
+                        return;
+                    } catch (retryError) {
+                        console.warn("Retrying save after cache cleanup failed.");
+                    }
+                }
+
+                // 2. If valid prune strategy applicable
+                if (pruneStrategy) {
+                    try {
+                        console.warn(`Applying prune strategy for '${key}' and retrying.`);
+                        const prunedValue = pruneStrategy(value);
+                        localStorage.setItem(key, JSON.stringify(prunedValue));
+                    } catch (pruneError) {
+                        console.error(`Failed to save '${key}' even after pruning.`, pruneError);
+                    }
+                }
+            } else {
+                console.error(`Failed to save '${key}' to localStorage:`, error);
+            }
+        }
+    }, [pruneChatHistory, showToast]);
 
     useEffect(() => {
-        localStorage.setItem('questionHistories', JSON.stringify(questionHistories));
-    }, [questionHistories]);
+        safeSetItem('chatHistories', chatHistories, pruneChatHistory);
+    }, [chatHistories, safeSetItem, pruneChatHistory]);
 
     useEffect(() => {
-        localStorage.setItem('zentis_feedbackHistory', JSON.stringify(feedbackHistory));
-    }, [feedbackHistory]);
+        safeSetItem('questionHistories', questionHistories);
+    }, [questionHistories, safeSetItem]);
 
     useEffect(() => {
-        localStorage.setItem('zentis_aiSettings', JSON.stringify(aiSettings));
-    }, [aiSettings]);
+        safeSetItem('zentis_feedbackHistory', feedbackHistory);
+    }, [feedbackHistory, safeSetItem]);
+
+    useEffect(() => {
+        safeSetItem('zentis_aiSettings', aiSettings);
+    }, [aiSettings, safeSetItem]);
 
     const selectedPatient = useMemo(() => allPatients.find(p => p.id === selectedPatientId) || null, [allPatients, selectedPatientId]);
     const messages = useMemo(() => selectedPatientId ? (chatHistories[selectedPatientId] || []) : [], [chatHistories, selectedPatientId]);
@@ -289,6 +387,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const togglePatientList = useCallback(() => dispatch({ type: 'TOGGLE_PATIENT_LIST' }), []);
     const toggleDashboard = useCallback(() => dispatch({ type: 'TOGGLE_DASHBOARD' }), []);
     const toggleLiveMode = useCallback(() => dispatch({ type: 'TOGGLE_LIVE_MODE' }), []);
+    const toggleSettings = useCallback(() => dispatch({ type: 'TOGGLE_SETTINGS' }), []); // NEW
     const toggleNoteModal = useCallback(() => dispatch({ type: 'TOGGLE_NOTE_MODAL' }), []);
 
     const handleSaveNotes = useCallback(async (patientId: string, notes: string) => {
@@ -326,30 +425,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
         }
 
-        const newReport = finalReport;
+        const newReport = finalReport as Report;
 
-        // 1. Save metadata to sub-collection (New Schema)
+        // 1. Save metadata to sub-collection FIRST — must complete before extraction
+        // so the Firestore document exists when the pipeline tries to update it.
         try {
             await addReportMetadata(patientId, newReport);
         } catch (error) {
             console.error("Failed to save report metadata:", error);
         }
 
-        // 2. Trigger AI Extraction in Background
-        if (newReport.content && (newReport.type === 'Lab' || newReport.type === 'Meds' || newReport.type === 'PDF')) {
-            showToast("AI is extracting clinical data from this report...", "info");
+        // 2. Trigger AI Extraction Pipeline AFTER metadata is persisted
+        if (aiSettings.apiKey) {
+            showToast("AI is extracting clinical data from this document...", "info");
             (async () => {
                 try {
-                    const contentForAnalysis = typeof newReport.content === 'string' ? newReport.content : (newReport as any).rawTextForAnalysis || '';
-                    if (!contentForAnalysis) return;
+                    const result = await runExtractionPipeline(
+                        patientId,
+                        newReport as Report & { id: string },
+                        aiSettings.apiKey!,
+                        file,
+                        (progress) => {
+                            setExtractionProgress(progress);
+                            if (progress.status === 'completed') {
+                                showToast(progress.message, 'success');
+                                // Refresh extracted data cache
+                                loadExtractedDataFn(patientId);
+                            } else if (progress.status === 'failed') {
+                                showToast(progress.message, 'error');
+                            }
+                        }
+                    );
 
-                    const extraction = await apiManager.getAiStructuredExtraction(contentForAnalysis, newReport.type, aiSettings);
-                    await saveExtractedData(patientId, newReport.id, extraction);
-                    showToast("Clinical data extracted and saved.", "success");
-
-                    // Refresh patient data to show new meds/labs?
-                    // Ideally we should re-fetch or update state. 
-                    // For now, let's just toast.
+                    // Persist OCR-extracted text back to state and Firestore so future analysis can use it
+                    if (result.rawExtractedText && !newReport.rawTextForAnalysis) {
+                        dispatch({
+                            type: 'UPDATE_REPORT_EXTRACTED_TEXT',
+                            payload: { patientId, reportId: newReport.id, rawTextForAnalysis: result.rawExtractedText }
+                        });
+                        // Also persist to Firestore via patient update
+                        try {
+                            const latestPatient = allPatients.find(p => p.id === patientId);
+                            if (latestPatient) {
+                                const updatedReports = latestPatient.reports.map(r =>
+                                    r.id === newReport.id ? { ...r, rawTextForAnalysis: result.rawExtractedText } : r
+                                );
+                                // Include newly added report if not yet in latestPatient
+                                const hasNewReport = latestPatient.reports.some(r => r.id === newReport.id);
+                                const finalReports = hasNewReport ? updatedReports : [...updatedReports, { ...newReport, rawTextForAnalysis: result.rawExtractedText }];
+                                await updatePatient({ ...latestPatient, reports: finalReports });
+                            }
+                        } catch (persistErr) {
+                            console.warn("Failed to persist extracted text to Firestore:", persistErr);
+                        }
+                    }
                 } catch (err) {
                     console.error("Background extraction failed:", err);
                 }
@@ -359,7 +488,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const updated = { ...patient, reports: [...patient.reports, newReport] };
         await updatePatient(updated);
         dispatch({ type: 'UPDATE_PATIENT_DATA', payload: updated });
-    }, [allPatients, showToast]);
+    }, [allPatients, showToast, aiSettings.apiKey]);
+
+    const handleDeleteReport = useCallback(async (patientId: string, reportId: string) => {
+        try {
+            await deleteReport(patientId, reportId);
+            dispatch({ type: 'DELETE_REPORT', payload: { patientId, reportId } });
+            showToast("Report deleted successfully.", 'success');
+        } catch (error) {
+            console.error("Failed to delete report:", error);
+            showToast("Failed to delete report.", 'error');
+        }
+    }, [showToast]);
+
+    // Load extracted data from Firestore
+    const loadExtractedDataFn = useCallback(async (patientId: string): Promise<ExtractedPatientData> => {
+        try {
+            const data = await fetchExtractedData(patientId);
+            setExtractedData(data);
+            return data;
+        } catch (error) {
+            console.error('Failed to load extracted data:', error);
+            return { medications: [], labs: [], vitals: [], diagnoses: [] };
+        }
+    }, []);
+
+    // Auto-load extracted data when patient changes
+    useEffect(() => {
+        if (selectedPatientId) {
+            loadExtractedDataFn(selectedPatientId);
+        } else {
+            setExtractedData(null);
+        }
+    }, [selectedPatientId, loadExtractedDataFn]);
 
 
 
@@ -410,9 +571,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } catch (error: any) {
             console.error("Send message error:", error);
             const isMissingKey = error instanceof MissingApiKeyError || error?.name === 'MissingApiKeyError';
+            const errorStr = String(error.message || error);
+            const isServiceOverloaded = errorStr.includes('503') || errorStr.includes('UNAVAILABLE') || errorStr.includes('high demand');
             const errorMessage = isMissingKey
                 ? 'Please add your Gemini API Key in Settings → Personalization to use AI features.'
-                : (error.message || 'Failed to get AI response.');
+                : isServiceOverloaded
+                    ? 'The AI service is temporarily at capacity. Please try again in a moment.'
+                    : (error.message || 'Failed to get AI response.');
             showToast(errorMessage, 'error');
             const errorMsg: TextMessage = {
                 id: Date.now() + 1,
@@ -663,15 +828,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         state: { ...state, selectedPatient, messages },
         actions: {
             enterApp,
-            selectPatient, setSearchQuery, handleSaveNotes, handleAddReport, handleCreateAndAnalyze,
+            selectPatient, setSearchQuery, handleSaveNotes, handleAddReport, handleDeleteReport, handleCreateAndAnalyze,
             toggleHuddleModal, selectPatientFromHuddle, togglePerformanceModal, toggleConsultationModal,
             setViewingReport, openFeedbackForm, closeFeedbackForm, addFeedback, updateAiSettings,
             handleSendMessage, handleAnalyzeReports, handleAnalyzeSingleReport, handleCompareReports,
             handleGeneratePrescription, showToast, removeToast, setMobileView, togglePatientList,
-            toggleDashboard, toggleLiveMode, handleGenerateClinicalNote, toggleNoteModal,
-            handleRunMultiSpecialistReview, handleRunClinicalDebate, handleUpdateTasks
+            toggleDashboard, toggleLiveMode, toggleSettings, handleGenerateClinicalNote, toggleNoteModal,
+            handleRunMultiSpecialistReview, handleRunClinicalDebate, handleUpdateTasks,
+            loadExtractedData: loadExtractedDataFn,
+            extractedData,
+            extractionProgress
         }
-    }), [state, selectedPatient, messages, enterApp, selectPatient, setSearchQuery, handleSaveNotes, handleAddReport, handleCreateAndAnalyze, toggleHuddleModal, selectPatientFromHuddle, togglePerformanceModal, toggleConsultationModal, setViewingReport, openFeedbackForm, closeFeedbackForm, addFeedback, updateAiSettings, handleSendMessage, handleAnalyzeReports, handleAnalyzeSingleReport, handleCompareReports, handleGeneratePrescription, showToast, removeToast, setMobileView, togglePatientList, toggleDashboard, toggleLiveMode, handleGenerateClinicalNote, toggleNoteModal, handleRunMultiSpecialistReview, handleRunClinicalDebate, handleUpdateTasks]);
+    }), [state, selectedPatient, messages, enterApp, selectPatient, setSearchQuery, handleSaveNotes, handleAddReport, handleCreateAndAnalyze, toggleHuddleModal, selectPatientFromHuddle, togglePerformanceModal, toggleConsultationModal, setViewingReport, openFeedbackForm, closeFeedbackForm, addFeedback, updateAiSettings, handleSendMessage, handleAnalyzeReports, handleAnalyzeSingleReport, handleCompareReports, handleGeneratePrescription, showToast, removeToast, setMobileView, togglePatientList, toggleDashboard, toggleLiveMode, handleGenerateClinicalNote, toggleNoteModal, handleRunMultiSpecialistReview, handleRunClinicalDebate, handleUpdateTasks, loadExtractedDataFn, extractedData, extractionProgress]);
 
     return (
         <AppContext.Provider value={value}>

@@ -107,8 +107,8 @@ export const UploadReportForm: React.FC<UploadReportFormProps> = ({ onSave, onCa
                 setRawTextForAnalysis(extractedText || null);
                 setEditedType(type);
 
-                if (rawTextForAnalysis) {
-                    const aiResult = await getAiSmartReportAnalysis(rawTextForAnalysis, type, aiSettings);
+                if (extractedText) {
+                    const aiResult = await getAiSmartReportAnalysis(extractedText, type, aiSettings);
                     setEditedTitle(aiResult.suggestedTitle);
                     setEditedDate(aiResult.extractedDate);
                     setAiSummary(aiResult.summary);

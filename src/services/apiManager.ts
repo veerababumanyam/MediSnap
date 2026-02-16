@@ -17,13 +17,25 @@ const getAiClient = (apiKey?: string) => {
 let isRateLimited = false;
 let retryAfterTimestamp = 0;
 const BACKOFF_DURATION_MS = 60 * 1000; // 60 seconds
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 1000;
 
 const RATE_LIMIT_ERROR_MESSAGE = 'You have exceeded the API rate limit. Please wait a moment and try again.';
+const SERVICE_OVERLOADED_MESSAGE = 'The AI service is temporarily at capacity. Please try again in a moment.';
+
+/** Returns true if the error indicates a 503 / UNAVAILABLE / high-demand condition. */
+const isServiceOverloaded = (errorString: string): boolean =>
+    errorString.includes('503') ||
+    errorString.toLowerCase().includes('unavailable') ||
+    errorString.toLowerCase().includes('high demand');
+
+/** Sleeps for the given milliseconds. */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * A generic wrapper for API calls to handle rate limiting with exponential backoff.
  * It blocks new requests if the app is currently rate-limited and sets a backoff period
- * when a 429 error is detected.
+ * when a 429 error is detected. It also retries on 503/UNAVAILABLE with exponential backoff.
  * @param apiCall The async function to execute.
  * @returns The result of the apiCall.
  * @throws An error if the call is blocked or if the underlying API call fails.
@@ -37,21 +49,41 @@ async function handleRateLimiting<T>(apiCall: () => Promise<T>): Promise<T> {
   // If the backoff period has passed, reset the rate limit state.
   isRateLimited = false;
 
-  try {
-    return await apiCall();
-  } catch (error: any) {
-    const errorString = String(error.message || error);
-    // Check for the specific 429 status code or message from Gemini API
-    if (errorString.includes('429') || errorString.toLowerCase().includes('resource_exhausted')) {
-      console.error('[ApiManager] Rate limit exceeded. Activating backoff.');
-      isRateLimited = true;
-      retryAfterTimestamp = Date.now() + BACKOFF_DURATION_MS;
-      // Throw a standardized error message for the UI to catch.
-      throw new Error(RATE_LIMIT_ERROR_MESSAGE);
+  let lastError: any;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await apiCall();
+    } catch (error: any) {
+      lastError = error;
+      const errorString = String(error.message || error);
+
+      // Check for the specific 429 status code or message from Gemini API
+      if (errorString.includes('429') || errorString.toLowerCase().includes('resource_exhausted')) {
+        console.error('[ApiManager] Rate limit exceeded. Activating backoff.');
+        isRateLimited = true;
+        retryAfterTimestamp = Date.now() + BACKOFF_DURATION_MS;
+        throw new Error(RATE_LIMIT_ERROR_MESSAGE);
+      }
+
+      // Check for 503 / UNAVAILABLE — retry with exponential backoff
+      if (isServiceOverloaded(errorString) && attempt < MAX_RETRIES) {
+        const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt); // 1s, 2s, 4s
+        console.warn(`[ApiManager] Service overloaded (attempt ${attempt + 1}/${MAX_RETRIES}). Retrying in ${delay}ms...`);
+        await sleep(delay);
+        continue;
+      }
+
+      // Non-retryable or exhausted retries — re-throw
+      if (isServiceOverloaded(errorString)) {
+        throw new Error(SERVICE_OVERLOADED_MESSAGE);
+      }
+      throw error;
     }
-    // Re-throw other types of errors
-    throw error;
   }
+
+  // Should not reach here, but just in case:
+  throw lastError;
 }
 
 // --- Wrapped Service Exports ---

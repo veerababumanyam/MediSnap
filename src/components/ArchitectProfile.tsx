@@ -307,7 +307,7 @@ export const ArchitectProfile: React.FC<ArchitectProfileProps> = ({ onBack }) =>
                             LinkedIn
                         </a>
                         <a
-                            href="mailto:veerababumanyam@gmail.com"
+                            href="mailto:manyamgermany@gmail.com"
                             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/25 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
                         >
                             Contact
@@ -406,7 +406,7 @@ export const ArchitectProfile: React.FC<ArchitectProfileProps> = ({ onBack }) =>
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                             </a>
                             <a
-                                href="mailto:veerababumanyam@gmail.com"
+                                href="mailto:manyamgermany@gmail.com"
                                 className="px-8 py-4 rounded-2xl landing-glass-card border border-white/[0.1] text-white font-semibold text-lg hover:bg-white/[0.08] hover:border-white/[0.2] transition-all duration-300 text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                             >
                                 Email Me
@@ -522,7 +522,7 @@ export const ArchitectProfile: React.FC<ArchitectProfileProps> = ({ onBack }) =>
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <a
-                            href="mailto:veerababumanyam@gmail.com"
+                            href="mailto:manyamgermany@gmail.com"
                             className="group relative px-10 py-5 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:shadow-blue-600/50 hover:scale-[1.03] transition-all duration-300 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                         >
                             <span className="relative z-10 flex items-center justify-center gap-2">
@@ -559,7 +559,7 @@ export const ArchitectProfile: React.FC<ArchitectProfileProps> = ({ onBack }) =>
                     </p>
                     <div className="flex items-center gap-6">
                         <a href="https://linkedin.com/in/vmanyam" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-white transition-colors text-xs">LinkedIn</a>
-                        <a href="mailto:veerababumanyam@gmail.com" className="text-gray-600 hover:text-white transition-colors text-xs">Email</a>
+                        <a href="mailto:manyamgermany@gmail.com" className="text-gray-600 hover:text-white transition-colors text-xs">Email</a>
                     </div>
                 </div>
             </footer>

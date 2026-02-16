@@ -34,3 +34,11 @@ export const setBriefing = (patientId: string, briefing: string): void => {
     console.error("Failed to write to localStorage:", error);
   }
 };
+
+export const clearBriefing = (patientId: string): void => {
+  try {
+    localStorage.removeItem(`${BRIEFING_CACHE_PREFIX}${patientId}`);
+  } catch (error) {
+    console.error("Failed to remove from localStorage:", error);
+  }
+};

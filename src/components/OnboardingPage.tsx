@@ -49,6 +49,29 @@ export const OnboardingPage: React.FC = () => {
             }
 
             await setDoc(doc(db, 'users', user.uid), finalProfile);
+
+            // DUAL-WRITE: If patient, also create the record in 'patients' collection
+            if (role === 'patient') {
+                const patientData = {
+                    id: user.uid,
+                    name: user.displayName || 'User',
+                    photoURL: user.photoURL || '',
+                    age: parseInt(age) || 0,
+                    gender: gender,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    allergies: [],
+                    medicalHistory: [],
+                    currentStatus: {
+                        condition: 'Healthy',
+                        vitals: 'BP 120/80',
+                        medications: []
+                    },
+                    reports: []
+                };
+                await setDoc(doc(db, 'patients', user.uid), patientData);
+            }
+
             await refreshProfile();
         } catch (error) {
             console.error("Error creating profile:", error);
@@ -62,7 +85,7 @@ export const OnboardingPage: React.FC = () => {
         <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
             <div className="max-w-md w-full p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl space-y-8 glass-panel border border-white/20">
                 <div className="text-center">
-                    <Logo.Medium className="mx-auto mb-6" style={{ width: 80, height: 'auto' }} />
+                    <Logo.Medium className="mx-auto mb-6 w-20 h-auto" />
                     <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">Welcome to {BRAND_NAME}</h2>
                     <p className="mt-2 text-gray-600 dark:text-gray-400">Let's set up your profile.</p>
                 </div>

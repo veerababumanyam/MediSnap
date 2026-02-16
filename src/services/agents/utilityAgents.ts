@@ -14,6 +14,8 @@ const getReportContentForPrompt = (report: Report): string => {
         content += report.content.rawText;
     } else if (report.content.type === 'link' && report.content.metadata?.simulatedContent) {
         content += report.content.metadata.simulatedContent;
+    } else if (report.rawTextForAnalysis) {
+        content += report.rawTextForAnalysis;
     } else {
         content += '[Image content not available for text analysis]';
     }
@@ -29,6 +31,10 @@ const getReportText = (report: Report): string | null => {
     }
     if (typeof report.content === 'object' && report.content.type === 'link' && report.content.metadata?.simulatedContent) {
         return report.content.metadata.simulatedContent;
+    }
+    // Fallback: use OCR-extracted text for image/DICOM reports processed by the extraction pipeline
+    if (report.rawTextForAnalysis) {
+        return report.rawTextForAnalysis;
     }
     return null;
 }
@@ -64,6 +70,43 @@ const getPersonalizationInstructions = (aiSettings: AiPersonalizationSettings): 
     if (aiSettings.verbosity === 'concise') instructions.push('Keep the response concise and to the point.');
     if (aiSettings.verbosity === 'detailed') instructions.push('Provide a detailed, comprehensive response.');
     return instructions.join(' ');
+};
+
+/**
+ * Fetches an image from a URL (e.g. Firebase Storage) and returns base64 data.
+ * Used by report analysis agents to send image content to Gemini Vision.
+ */
+const fetchImageAsBase64 = async (url: string): Promise<{ base64Data: string; mimeType: string } | null> => {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        const blob = await response.blob();
+        const mimeType = blob.type || 'image/jpeg';
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const dataUrl = reader.result as string;
+                const base64Data = dataUrl.split(',')[1];
+                resolve({ base64Data, mimeType });
+            };
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.warn('Failed to fetch image for analysis:', error);
+        return null;
+    }
+};
+
+/**
+ * Checks if a report has image content and returns the URL if so.
+ */
+const getImageReportUrl = (report: Report): string | null => {
+    if (typeof report.content === 'object' && report.content !== null) {
+        if (report.content.type === 'image' && 'url' in report.content) return report.content.url;
+        if (report.content.type === 'dicom' && 'url' in report.content) return report.content.url;
+    }
+    return null;
 };
 
 
@@ -421,19 +464,84 @@ export const runDailyHuddleAgent = async (patients: Patient[], ai: GoogleGenAI):
 };
 
 export const runSingleReportAnalysisAgent = async (report: Report, patient: Patient, ai: GoogleGenAI, aiSettings: AiPersonalizationSettings): Promise<TextMessage> => {
-    const prompt = `Analyze report for ${patient.name}. Report: ${report.title}. Content: ${getReportText(report)}. Summarize.`;
+    const textContent = getReportText(report);
+    const imageUrl = getImageReportUrl(report);
+
+    // If this is an image report, try multimodal analysis with the actual image
+    if (imageUrl && !textContent) {
+        const imageData = await fetchImageAsBase64(imageUrl);
+        if (imageData) {
+            const parts: any[] = [
+                { text: `Analyze this medical report image for ${patient.name}. Report: ${report.title} (${report.type}, ${report.date}). Provide a comprehensive summary including all key findings, values, and clinical significance.` },
+                { inlineData: { mimeType: imageData.mimeType, data: imageData.base64Data } }
+            ];
+            const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: { parts } });
+            return { id: Date.now(), sender: 'ai', type: 'text', text: response.text, suggestedAction: { type: 'view_report', label: 'View Report', reportId: report.id } };
+        }
+    }
+
+    // Text-based analysis (original path or fallback)
+    const prompt = `Analyze report for ${patient.name}. Report: ${report.title}. Content: ${textContent || 'No content available.'}. Summarize.`;
     const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
     return { id: Date.now(), sender: 'ai', type: 'text', text: response.text, suggestedAction: { type: 'view_report', label: 'View Report', reportId: report.id } };
 };
 
 export const runMultiReportAnalysisAgent = async (reports: Report[], patient: Patient, ai: GoogleGenAI, aiSettings: AiPersonalizationSettings): Promise<TextMessage> => {
-    const prompt = `Analyze ${reports.length} reports for ${patient.name}. Content: ${reports.map(r => getReportText(r)).join('\n')}. Synthesize findings.`;
-    const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+    // Build multimodal parts: include text for text-based reports, inline images for image reports
+    const parts: any[] = [{ text: `Analyze ${reports.length} reports for ${patient.name}. Synthesize all findings into a comprehensive summary.\n\n` }];
+    let hasImageParts = false;
+
+    for (const report of reports) {
+        const textContent = getReportText(report);
+        const imageUrl = getImageReportUrl(report);
+
+        if (textContent) {
+            parts.push({ text: `--- ${report.title} (${report.type}, ${report.date}) ---\n${textContent}\n` });
+        } else if (imageUrl) {
+            const imageData = await fetchImageAsBase64(imageUrl);
+            if (imageData) {
+                parts.push({ text: `--- ${report.title} (${report.type}, ${report.date}) ---\n[Image report below]\n` });
+                parts.push({ inlineData: { mimeType: imageData.mimeType, data: imageData.base64Data } });
+                hasImageParts = true;
+            } else {
+                parts.push({ text: `--- ${report.title} (${report.type}, ${report.date}) ---\n[Image not accessible]\n` });
+            }
+        } else {
+            parts.push({ text: `--- ${report.title} (${report.type}, ${report.date}) ---\n[No content available]\n` });
+        }
+    }
+
+    const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: hasImageParts ? { parts } : parts.map(p => p.text).join('') });
     return { id: Date.now(), sender: 'ai', type: 'text', text: response.text };
 };
 
 export const runReportComparisonAgent = async (currentReport: Report, previousReport: Report, patient: Patient, ai: GoogleGenAI): Promise<ReportComparisonMessage | TextMessage> => {
-    const prompt = `Compare reports for ${patient.name}. Current: ${getReportText(currentReport)}. Previous: ${getReportText(previousReport)}. Return JSON comparison.`;
+    // Build multimodal content parts for comparison
+    const parts: any[] = [{ text: `Compare these two reports for ${patient.name}. Return JSON comparison.\n\nCurrent Report (${currentReport.title}, ${currentReport.date}):\n` }];
+    let hasImageParts = false;
+
+    const addReportContent = async (report: Report) => {
+        const textContent = getReportText(report);
+        const imageUrl = getImageReportUrl(report);
+        if (textContent) {
+            parts.push({ text: textContent + '\n\n' });
+        } else if (imageUrl) {
+            const imageData = await fetchImageAsBase64(imageUrl);
+            if (imageData) {
+                parts.push({ inlineData: { mimeType: imageData.mimeType, data: imageData.base64Data } });
+                hasImageParts = true;
+            } else {
+                parts.push({ text: '[Image not accessible]\n\n' });
+            }
+        } else {
+            parts.push({ text: '[No content available]\n\n' });
+        }
+    };
+
+    await addReportContent(currentReport);
+    parts.push({ text: `\nPrevious Report (${previousReport.title}, ${previousReport.date}):\n` });
+    await addReportContent(previousReport);
+
     const responseSchema = {
         type: Type.OBJECT,
         properties: {
@@ -445,9 +553,10 @@ export const runReportComparisonAgent = async (currentReport: Report, previousRe
     };
 
     try {
+        const contents = hasImageParts ? { parts } : parts.map(p => 'text' in p ? p.text : '').join('');
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: prompt,
+            contents,
             config: { responseMimeType: 'application/json', responseSchema }
         });
         const result = JSON.parse(response.text.trim());

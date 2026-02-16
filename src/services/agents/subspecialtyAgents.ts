@@ -69,7 +69,7 @@ export const runInterventionalCardiologyAgent = async (patient: Patient, query: 
         };
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: { responseMimeType: 'application/json', responseSchema }
         });
@@ -107,7 +107,7 @@ export const runEpAgent = async (patient: Patient, query: string, ai: GoogleGenA
                 aiAssessment: { type: Type.STRING }
             }
         };
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema } });
+        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt, config: { responseMimeType: 'application/json', responseSchema } });
         const result = JSON.parse(response.text.trim());
         return { id: 0, sender: 'ai', type: 'ep_device_report', title: `Device Interrogation: ${patient.name}`, ...result, suggestedAction: { type: 'view_report', label: 'View Report', reportId: deviceReport.id } };
     } catch(e) { return { id: 0, sender: 'ai', type: 'text', text: "Error analyzing device report." }; }
@@ -127,7 +127,7 @@ export const runAdvancedHfAgent = async (patient: Patient, query: string, ai: Go
                 aiAssessment: { type: Type.OBJECT, properties: { concern: {type: Type.STRING}, rationale: {type: Type.STRING}, recommendation: {type: Type.STRING} } }
             }
         };
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema } });
+        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt, config: { responseMimeType: 'application/json', responseSchema } });
         const result = JSON.parse(response.text.trim());
         return { id: 0, sender: 'ai', type: 'advanced_heart_failure', title: `LVAD Analysis`, ...result, suggestedAction: { type: 'view_report', label: 'View Report', reportId: hfDeviceReport.id } };
     } catch(e) { return { id: 0, sender: 'ai', type: 'text', text: "Error analyzing LVAD report." }; }
@@ -152,7 +152,7 @@ export const runCtaAnalysisAgent = async (patient: Patient, query: string, ai: G
                 recommendations: { type: Type.ARRAY, items: { type: Type.STRING } }
             }
         };
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema } });
+        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt, config: { responseMimeType: 'application/json', responseSchema } });
         const result = JSON.parse(response.text.trim());
         return { id: 0, sender: 'ai', type: 'cta_analysis', title: `CTA Analysis`, ...result, suggestedAction: { type: 'view_report', label: 'View CTA', reportId: ctaReport.id } };
     } catch(e) { return { id: 0, sender: 'ai', type: 'text', text: "Error analyzing CTA report." }; }

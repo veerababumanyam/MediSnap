@@ -10,9 +10,25 @@ import {
   limit,
   addDoc,
   Timestamp,
-  writeBatch
+  writeBatch,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
+
+/** Recursively removes undefined values from an object/array (Firestore rejects undefined). */
+const stripUndefined = (obj: any): any => {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) return obj.map(item => stripUndefined(item));
+  if (obj instanceof Date) return obj;
+  if (typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, v]) => v !== undefined)
+        .map(([k, v]) => [k, stripUndefined(v)])
+    );
+  }
+  return obj;
+};
 import type { Patient, Report, VitalsLog, MedicalHistoryItem, ClinicalTask } from '../types';
 import type {
   MedicationDocument,
@@ -44,45 +60,27 @@ const mapLabToDomain = (doc: LabResultDocument): any => {
 
 /**
  * Fetches a complete Patient object by aggregating data from sub-collections.
- * This is the "Read Model" aggregator.
+ * Implements robust parallel fetching: Patient Doc, Fallback User Doc, and all sub-collections
+ * are fetched concurrently to minimize waterfall latency.
  */
 export const getPatient = async (patientId: string): Promise<Patient | null> => {
   try {
     const patientRef = doc(db, PATIENTS_COLLECTION, patientId);
-    const patientSnap = await getDoc(patientRef);
+    const userRef = doc(db, USERS_COLLECTION, patientId);
 
-    if (!patientSnap.exists()) {
-      // Fallback: Check if it's a user claiming to be a patient (Legacy/Auth path)
-      // This supports the hybrid model where a user login is a 'patient'
-      const userRef = doc(db, USERS_COLLECTION, patientId);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists() && userSnap.data().role === 'patient') {
-        // Return minimal profile from User
-        const userData = userSnap.data();
-        return {
-          id: patientId,
-          name: userData.displayName,
-          age: 0, // Profile doesn't have age yet
-          gender: 'Female', // Default/Placeholder
-          weight: 0,
-          allergies: [],
-          medicalHistory: [],
-          appointmentTime: '09:00',
-          currentStatus: {
-            condition: 'Wellness Check',
-            vitals: '',
-            medications: []
-          },
-          reports: []
-        } as Patient;
-      }
-      return null;
-    }
-
-    const pData = patientSnap.data() as PatientDocument;
-
-    // Parallel Fetch of Sub-collections
-    const [medsSnap, labsSnap, vitalsSnap, diagnosesSnap, reportsSnap] = await Promise.all([
+    // 1. Parallel Fetch: Parent Patient, Fallback User, and ALL 5 sub-collections
+    // This removes the waterfall where we waited for patient existence before fetching details
+    const [
+      patientSnap,
+      userSnap,
+      medsSnap,
+      labsSnap, // Note: labs currently fetched but not fully mapped in original code, keeping for consistency
+      vitalsSnap,
+      diagnosesSnap,
+      reportsSnap
+    ] = await Promise.all([
+      getDoc(patientRef),
+      getDoc(userRef),
       getDocs(collection(patientRef, 'medications')),
       getDocs(query(collection(patientRef, 'labs'), orderBy('date', 'desc'), limit(50))),
       getDocs(query(collection(patientRef, 'vitals'), orderBy('date', 'desc'), limit(20))),
@@ -90,7 +88,27 @@ export const getPatient = async (patientId: string): Promise<Patient | null> => 
       getDocs(query(collection(patientRef, 'reports'), orderBy('date', 'desc'), limit(20)))
     ]);
 
-    // Map Sub-collections to Domain Object
+    // 2. Determine Base Patient Data (Demographics)
+    let pData: PatientDocument | any = null;
+
+    if (patientSnap.exists()) {
+      pData = patientSnap.data() as PatientDocument;
+    } else if (userSnap.exists() && userSnap.data().role === 'patient') {
+      // Fallback: Construct a default profile from User data
+      const userData = userSnap.data();
+      pData = {
+        id: patientId,
+        name: userData.displayName || 'Unknown Patient',
+        age: userData.age ?? 0,
+        gender: (userData.gender as 'Male' | 'Female' | 'Other') || 'Female',
+        allergies: [],
+      };
+    } else {
+      // Neither exists (or user is not a patient)
+      return null;
+    }
+
+    // 3. Process Sub-collections (Always process these if base data found)
     const medications = medsSnap.docs
       .map(d => d.data() as MedicationDocument)
       .filter(m => m.status === 'active')
@@ -119,25 +137,26 @@ export const getPatient = async (patientId: string): Promise<Patient | null> => 
         type: data.type as Report['type'],
         date: data.date,
         title: data.title,
-        content: { type: 'pdf', url: data.downloadUrl, rawText: '' }, // Simplified for list view
+        content: { type: 'pdf', url: data.downloadUrl, rawText: '' },
         aiSummary: data.aiSummary,
         keyFindings: data.keyFindings
       } as Report;
     });
 
-    // Construct Domain Object
+    // 4. Construct Final Domain Object
     return {
       id: pData.id,
       name: pData.name,
-      age: pData.age,
-      gender: pData.gender as any,
-      weight: 70, // TODO: store in profile or get from latest weight vital
+      photoURL: pData.photoURL || (userSnap.exists() ? userSnap.data().photoURL : undefined), // NEW: Fallback to user photo
+      age: pData.age ?? 0,
+      gender: (pData.gender as any) || 'Female',
+      weight: 70, // Default/Placeholder
       allergies: pData.allergies || [],
       medicalHistory: medicalHistory,
-      appointmentTime: '10:00', // Placeholder or add to schema
+      appointmentTime: '09:00', // Default
       criticalAlerts: pData.criticalAlerts,
       currentStatus: {
-        condition: pData.currentCondition || 'Follow-up',
+        condition: pData.currentCondition || 'Wellness Check',
         vitals: vitalsString,
         medications: medications
       },
@@ -156,10 +175,10 @@ export const getPatient = async (patientId: string): Promise<Patient | null> => 
  * Saves a new patient or updates demographics (Top-level document only).
  */
 export const savePatientDemographics = async (patientId: string, data: Partial<PatientDocument>): Promise<void> => {
-  await setDoc(doc(db, PATIENTS_COLLECTION, patientId), {
+  await setDoc(doc(db, PATIENTS_COLLECTION, patientId), stripUndefined({
     ...data,
     updatedAt: Date.now()
-  }, { merge: true });
+  }), { merge: true });
 };
 
 /**
@@ -184,23 +203,30 @@ export const addLabResult = async (patientId: string, lab: Omit<LabResultDocumen
 
 /**
  * Adds a report metadata entry.
+ * Uses setDoc with the client-generated report ID so the Firestore document ID
+ * matches the ID used by the extraction pipeline for status updates.
  */
-export const addReportMetadata = async (patientId: string, report: Omit<Report, 'id'>) => {
+export const addReportMetadata = async (patientId: string, report: Report) => {
   // Convert App 'Report' type to Firestore 'ReportDocument' schema
+  const contentUrl = (typeof report.content === 'object' && report.content !== null && 'url' in report.content)
+    ? (report.content as any).url
+    : '';
   const docData = {
     title: report.title,
     type: report.type,
     date: report.date || new Date().toISOString(),
-    // Assuming content is an object with URL for now, need robust check
     extractionStatus: 'pending',
     aiSummary: report.aiSummary,
     keyFindings: report.keyFindings,
-    storagePath: (report.content as any).url || '',
-    downloadUrl: (report.content as any).url || '',
+    storagePath: contentUrl,
+    downloadUrl: contentUrl,
     createdAt: Date.now()
   };
 
-  await addDoc(collection(db, PATIENTS_COLLECTION, patientId, 'reports'), docData);
+  // Use setDoc with the client-generated ID (e.g. "rep_17xxxxx")
+  // so the extraction pipeline can later update this exact document.
+  const reportRef = doc(db, PATIENTS_COLLECTION, patientId, 'reports', report.id);
+  await setDoc(reportRef, stripUndefined(docData));
 };
 
 /**
@@ -242,9 +268,9 @@ export const saveExtractedData = async (
     batch.set(ref, { ...dx, sourceReportId: reportId, createdAt: Date.now() });
   });
 
-  // 5. Update Report Status
+  // 5. Update Report Status (use set+merge so the batch doesn't fail if the doc is still being created)
   const reportRef = doc(db, PATIENTS_COLLECTION, patientId, 'reports', reportId);
-  batch.update(reportRef, { extractionStatus: 'completed' });
+  batch.set(reportRef, { extractionStatus: 'completed' }, { merge: true });
 
   await batch.commit();
 };
@@ -255,7 +281,7 @@ export const updatePatient = async (patient: Patient): Promise<void> => {
     // We only update the top-level patient document for simplicity here.
     // Deep updates like medications should technically go to subcollections, 
     // but we support hybrid for now.
-    await setDoc(doc(db, PATIENTS_COLLECTION, patient.id), patient, { merge: true });
+    await setDoc(doc(db, PATIENTS_COLLECTION, patient.id), stripUndefined({ ...patient }), { merge: true });
   } catch (error) {
     throw error;
   }
@@ -267,11 +293,11 @@ export const updatePatient = async (patient: Patient): Promise<void> => {
 export const createPatient = async (userId: string, patientData: Partial<Patient>): Promise<string> => {
   try {
     // 1. Create Patient Document
-    const patientRef = await addDoc(collection(db, PATIENTS_COLLECTION), {
+    const patientRef = await addDoc(collection(db, PATIENTS_COLLECTION), stripUndefined({
       ...patientData,
       createdAt: Date.now(),
       updatedAt: Date.now()
-    });
+    }));
 
     const patientId = patientRef.id;
 
@@ -319,6 +345,59 @@ export const fetchPatients = async (currentUserId?: string): Promise<Patient[]> 
   }
 }
 
+/**
+ * Updates the extraction status of a report document.
+ */
+export const updateReportExtractionStatus = async (
+  patientId: string,
+  reportId: string,
+  status: 'pending' | 'processing' | 'completed' | 'failed',
+  rawExtractedText?: string
+): Promise<void> => {
+  try {
+    const reportRef = doc(db, PATIENTS_COLLECTION, patientId, 'reports', reportId);
+    const updateData: any = { extractionStatus: status };
+    if (rawExtractedText) {
+      updateData.extractedText = rawExtractedText.substring(0, 50000); // Firestore field size limit
+    }
+    await updateDoc(reportRef, updateData);
+  } catch (error) {
+    console.warn(`Failed to update extraction status for report ${reportId}:`, error);
+  }
+};
+
+/**
+ * Fetches all extracted structured data for a patient from sub-collections.
+ * Returns medications, labs, vitals, and diagnoses sorted by recency.
+ */
+export const fetchExtractedData = async (patientId: string): Promise<{
+  medications: import('./databaseSchema').MedicationDocument[];
+  labs: import('./databaseSchema').LabResultDocument[];
+  vitals: import('./databaseSchema').VitalSignDocument[];
+  diagnoses: import('./databaseSchema').DiagnosisDocument[];
+}> => {
+  try {
+    const patientRef = doc(db, PATIENTS_COLLECTION, patientId);
+
+    const [medsSnap, labsSnap, vitalsSnap, diagnosesSnap] = await Promise.all([
+      getDocs(query(collection(patientRef, 'medications'), orderBy('createdAt', 'desc'))),
+      getDocs(query(collection(patientRef, 'labs'), orderBy('date', 'desc'), limit(100))),
+      getDocs(query(collection(patientRef, 'vitals'), orderBy('date', 'desc'), limit(50))),
+      getDocs(collection(patientRef, 'diagnoses'))
+    ]);
+
+    return {
+      medications: medsSnap.docs.map(d => ({ id: d.id, ...d.data() } as import('./databaseSchema').MedicationDocument)),
+      labs: labsSnap.docs.map(d => ({ id: d.id, ...d.data() } as import('./databaseSchema').LabResultDocument)),
+      vitals: vitalsSnap.docs.map(d => ({ id: d.id, ...d.data() } as import('./databaseSchema').VitalSignDocument)),
+      diagnoses: diagnosesSnap.docs.map(d => ({ id: d.id, ...d.data() } as import('./databaseSchema').DiagnosisDocument))
+    };
+  } catch (error) {
+    console.error(`Error fetching extracted data for patient ${patientId}:`, error);
+    return { medications: [], labs: [], vitals: [], diagnoses: [] };
+  }
+};
+
 export const exportAllData = async (): Promise<any> => {
   console.warn("exportAllData not implemented");
   return {};
@@ -326,4 +405,14 @@ export const exportAllData = async (): Promise<any> => {
 
 export const importData = async (data: any): Promise<void> => {
   console.warn("importData not implemented");
+};
+
+export const deleteReport = async (patientId: string, reportId: string): Promise<void> => {
+  try {
+    const reportRef = doc(db, PATIENTS_COLLECTION, patientId, 'reports', reportId);
+    await deleteDoc(reportRef);
+  } catch (error) {
+    console.error("Error deleting report:", error);
+    throw error;
+  }
 };

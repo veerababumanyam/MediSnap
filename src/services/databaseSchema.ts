@@ -26,6 +26,7 @@ export interface UserDocument {
 export interface PatientDocument {
     id: string; // Matches Firestore Document ID
     name: string;
+    photoURL?: string; // NEW
     age: number;
     gender: 'Male' | 'Female' | 'Other';
     dob: string; // YYYY-MM-DD

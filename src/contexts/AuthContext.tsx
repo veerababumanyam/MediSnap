@@ -76,9 +76,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const user = result.user;
 
             // Check if user profile exists
-            // We explicitly do NOT auto-create the profile here anymore.
-            // If the profile doesn't exist, userProfile will remain null,
-            // triggering the OnboardingPage to show up.
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists()) {
+                // Update photoURL if it changed or wasn't there
+                const data = userDoc.data() as UserProfile;
+                if (user.photoURL && data.photoURL !== user.photoURL) {
+                    await updateDoc(doc(db, 'users', user.uid), { photoURL: user.photoURL });
+                }
+            }
+
             await fetchUserProfile(user.uid);
 
         } catch (error: any) {

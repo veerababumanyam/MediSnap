@@ -11,6 +11,8 @@ export interface UserProfile {
     photoURL: string;
     patients?: string[]; // IDs of patients managed by this user (for doctors)
     healthRecordId?: string; // ID of health record (for patients)
+    age?: number;
+    gender?: 'Male' | 'Female' | 'Other';
 }
 export interface Report {
     id: string;
@@ -43,8 +45,9 @@ export interface ClinicalTask {
 export interface Patient {
     id: string;
     name: string;
+    photoURL?: string; // NEW
     age: number;
-    gender: 'Male' | 'Female';
+    gender: 'Male' | 'Female' | 'Other';
     weight: number; // in kg
     allergies: string[];
     medicalHistory: MedicalHistoryItem[];

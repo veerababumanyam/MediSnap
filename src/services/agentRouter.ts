@@ -1,10 +1,13 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import * as agents from './agents';
-import type { Patient, Message, AiPersonalizationSettings } from '../types';
+import type { Patient, Message, AiPersonalizationSettings, Report, UploadableFile } from '../types';
 
 // Regex for immediate/obvious lookups (Optimization: prevents API call for simple actions)
-const reportQueryRegex = /\b(show|view|display|pull up|find|get)\b.*\b(report|ecg|ekg|echo|lab|x-ray|angiogram|interrogation|log|cath|device|imaging|meds|medication|pathology|mri|biopsy)\b/i;
+const reportQueryRegex = /\b(show|view|display|pull up|find|get)\b.*\b(report|ecg|ekg|echo|lab|x-ray|angiogram|interrogation|log|cath|device|imaging|meds|medication|pathology|mri|biopsy|eye|ophthalmology)\b/i;
+
+// Regex for analysis-intent queries about reports
+const reportAnalysisRegex = /\b(analyze|analyse|summarize|summarise|explain|interpret|read|extract|review|what does|tell me about)\b.*\b(report|ecg|ekg|echo|lab|x-ray|angiogram|interrogation|log|cath|device|imaging|meds|medication|pathology|mri|biopsy|eye|ophthalmology|document|scan|image|photo|picture|file|result)\b/i;
 
 // --- DOMAIN CLASSIFIER ---
 const determineSpecialty = async (query: string, ai: GoogleGenAI): Promise<string> => {
@@ -38,7 +41,7 @@ const determineSpecialty = async (query: string, ai: GoogleGenAI): Promise<strin
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-lite-preview-02-05', // Low latency for routing
+            model: 'gemini-3-flash-preview', // Low latency for routing
             contents: prompt
         });
         return response.text.trim();
@@ -46,6 +49,46 @@ const determineSpecialty = async (query: string, ai: GoogleGenAI): Promise<strin
         console.warn("Classifier failed, defaulting to General");
         return 'General';
     }
+};
+
+/**
+ * Finds the most relevant report for a user query using AI classification.
+ */
+const findReportByQuery = async (query: string, reports: Report[], ai: GoogleGenAI): Promise<Report | null> => {
+    if (reports.length === 0) return null;
+
+    // Quick heuristic match: check if query mentions a report by name/type
+    const queryLower = query.toLowerCase();
+    for (const report of reports) {
+        const titleLower = report.title.toLowerCase();
+        const typeLower = report.type.toLowerCase();
+        if (queryLower.includes(titleLower) || queryLower.includes(typeLower)) {
+            return report;
+        }
+        // Check for common partial matches (e.g. "eye report" matches "eye_report.jpg")
+        const titleWords = titleLower.replace(/[_\-.]/g, ' ').split(/\s+/);
+        if (titleWords.some(w => w.length > 2 && queryLower.includes(w))) {
+            return report;
+        }
+    }
+
+    // Fall back to AI classification if heuristic fails
+    try {
+        const reportList = reports.map(r => ({ id: r.id, type: r.type, date: r.date, title: r.title }));
+        const prompt = `Identify the single most relevant report ID for this analysis query: "${query}".\nReports: ${JSON.stringify(reportList)}\nReturn JSON: { "reportId": "string | null" }`;
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: { responseMimeType: 'application/json', responseSchema: { type: Type.OBJECT, properties: { reportId: { type: Type.STRING } }, required: ['reportId'] } }
+        });
+        const result = JSON.parse(response.text.trim());
+        if (result.reportId && result.reportId !== 'null') {
+            return reports.find(r => r.id === result.reportId) || null;
+        }
+    } catch (e) {
+        console.warn('[AgentRouter] Report matching via AI failed:', e);
+    }
+    return null;
 };
 
 /**
@@ -83,6 +126,19 @@ export const agentRouter = async (query: string, patient: Patient, aiSettings: A
         }
     }
 
+    // Check for analysis-intent queries that reference a specific report (including image reports)
+    if (reportAnalysisRegex.test(query) && patient.reports && patient.reports.length > 0) {
+        try {
+            const matchedReport = await findReportByQuery(query, patient.reports, ai);
+            if (matchedReport) {
+                console.log(`[AgentRouter] Matched report for analysis: ${matchedReport.title}`);
+                return await agents.runSingleReportAnalysisAgent(matchedReport, patient, ai, aiSettings);
+            }
+        } catch (e) {
+            console.warn('[AgentRouter] Report analysis routing failed, falling through:', e);
+        }
+    }
+
     // --- Classify the query domain for better routing ---
     let specialty = 'General';
     try {
@@ -110,8 +166,16 @@ export const agentRouter = async (query: string, patient: Patient, aiSettings: A
         patientContext += `Medical History: ${patient.medicalHistory.map(h => h.description).join('; ')}.\n`;
     }
     if (hasReports) {
-        const recentReports = patient.reports.slice(-3).map(r => `${r.type} (${r.date}): ${r.title || 'Untitled'}`).join('; ');
-        patientContext += `Recent Reports: ${recentReports}.\n`;
+        const recentReports = patient.reports.slice(-3).map(r => {
+            let summary = `${r.type} (${r.date}): ${r.title || 'Untitled'}`;
+            // Include extracted text content or AI summary if available
+            const textContent = r.rawTextForAnalysis || r.aiSummary;
+            if (textContent) {
+                summary += `\n  Content: ${textContent.substring(0, 300)}...`;
+            }
+            return summary;
+        }).join('\n');
+        patientContext += `Recent Reports:\n${recentReports}\n`;
     }
 
     const systemPrompt = `You are a knowledgeable, empathetic medical health assistant powered by AI. Your role is to help users understand health topics, answer medical questions, and provide evidence-based health information.

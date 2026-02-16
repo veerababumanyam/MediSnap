@@ -1,7 +1,8 @@
 
 import React, { Suspense, useState, useEffect } from 'react';
 import { HealthRecordSidebar } from './components/HealthRecordSidebar';
-import { PatientSelector } from './components/PatientSelector'; // NEW
+import { PatientSelector } from './components/PatientSelector';
+import { PatientSettingsModal } from './components/PatientSettingsModal'; // NEW
 import { ChatWindow } from './components/ChatWindow';
 import { ThemeProvider } from './hooks/useTheme';
 import { useAppContext } from './contexts/AppContext';
@@ -114,91 +115,92 @@ const App: React.FC = () => {
                         <ApiKeyMissingBanner onOpenSettings={actions.togglePerformanceModal} />
                     )}
                     <div className="flex flex-1 min-h-0">
-                    <>
-                        <ToastContainer />
+                        <>
+                            <ToastContainer />
 
-                        {/* Left Sidebar - Personal Health Record or Patient List */}
-                        <aside className={`h-full md:relative absolute inset-0 z-20 flex flex-col flex-shrink-0 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) md:translate-x-0 ${isPatientListCollapsed ? 'md:w-20' : 'md:w-80'} glass-panel border-r border-white/20 dark:border-white/10`}>
-                            <div className="flex-1 flex flex-col min-h-0">
-                                {userProfile?.role === 'patient' || selectedPatient ? (
-                                    <HealthRecordSidebar
-                                        onBack={userProfile?.role !== 'patient' ? () => actions.selectPatient('') : undefined}
-                                    />
-                                ) : (
-                                    <PatientSelector />
-                                )}
-                            </div>
-                            <button
-                                onClick={actions.togglePatientList}
-                                className="hidden md:flex items-center justify-center absolute top-1/2 -right-3.5 z-30 w-8 h-8 glass-card rounded-full text-gray-600 dark:text-gray-300 hover:scale-110 transition-transform duration-200 shadow-lg"
-                                aria-label={isPatientListCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                            >
-                                {isPatientListCollapsed ? <ChevronRightIcon className="w-4 h-4" /> : <ChevronLeftIcon className="w-4 h-4" />}
-                            </button>
-                        </aside>
-
-                        {/* Main Content Area - Chat Assistant */}
-                        <main className={`flex-1 flex flex-col min-w-0 w-full h-full relative z-10`}>
-                            {selectedPatient ? (
-                                <ChatWindow />
-                            ) : (
-                                <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500 font-medium">
-                                    Select a patient to view details
+                            {/* Left Sidebar - Personal Health Record or Patient List */}
+                            <aside className={`h-full md:relative absolute inset-0 z-20 flex flex-col flex-shrink-0 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) md:translate-x-0 ${isPatientListCollapsed ? 'md:w-20' : 'md:w-80'} glass-panel border-r border-white/20 dark:border-white/10`}>
+                                <div className="flex-1 flex flex-col min-h-0">
+                                    {userProfile?.role === 'patient' || selectedPatient ? (
+                                        <HealthRecordSidebar
+                                            onBack={userProfile?.role !== 'patient' ? () => actions.selectPatient('') : undefined}
+                                        />
+                                    ) : (
+                                        <PatientSelector />
+                                    )}
                                 </div>
-                            )}
-                        </main>
+                                <button
+                                    onClick={actions.togglePatientList}
+                                    className="hidden md:flex items-center justify-center absolute top-1/2 -right-3.5 z-30 w-8 h-8 glass-card rounded-full text-gray-600 dark:text-gray-300 hover:scale-110 transition-transform duration-200 shadow-lg"
+                                    aria-label={isPatientListCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                                >
+                                    {isPatientListCollapsed ? <ChevronRightIcon className="w-4 h-4" /> : <ChevronLeftIcon className="w-4 h-4" />}
+                                </button>
+                            </aside>
 
-                        {/* Right Sidebar (Dashboard) - Glass Pane */}
-                        {selectedPatient && (
-                            <aside className={`
+                            {/* Main Content Area - Chat Assistant */}
+                            <main className={`flex-1 flex flex-col min-w-0 w-full h-full relative z-10`}>
+                                {selectedPatient ? (
+                                    <ChatWindow />
+                                ) : (
+                                    <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500 font-medium">
+                                        Select a patient to view details
+                                    </div>
+                                )}
+                            </main>
+
+                            {/* Right Sidebar (Dashboard) - Glass Pane */}
+                            {selectedPatient && (
+                                <aside className={`
                             absolute md:relative right-0 inset-y-0 z-30 
                             h-full transition-all duration-300 ease-in-out
                             ${isDashboardOpen ? 'translate-x-0 w-80' : 'translate-x-full md:translate-x-0 w-0 md:w-16'}
                             glass-panel border-l border-white/20 dark:border-white/10
                         `}>
-                                <ClinicalDashboard />
-                            </aside>
-                        )}
-
-                        {/* Overlay for mobile dashboard */}
-                        {selectedPatient && isDashboardOpen && (
-                            <div
-                                className="fixed inset-0 bg-black/20 z-20 md:hidden backdrop-blur-sm"
-                                onClick={actions.toggleDashboard}
-                            />
-                        )}
-
-                        <LiveAssistant />
-
-                        <Suspense fallback={<ModalLoader />}>
-                            {isNoteModalOpen && (
-                                <NoteGeneratorModal />
+                                    <ClinicalDashboard />
+                                </aside>
                             )}
 
-                            {viewingReport && (
-                                <ReportViewerModal />
-                            )}
-
-                            {isConsultationModalOpen && (
-                                <NewPatientConsultationModal
-                                    onClose={actions.toggleConsultationModal}
-                                    onCreateAndAnalyze={actions.handleCreateAndAnalyze}
+                            {/* Overlay for mobile dashboard */}
+                            {selectedPatient && isDashboardOpen && (
+                                <div
+                                    className="fixed inset-0 bg-black/20 z-20 md:hidden backdrop-blur-sm"
+                                    onClick={actions.toggleDashboard}
                                 />
                             )}
 
-                            {isHuddleModalOpen && (
-                                <DailyHuddleModal />
-                            )}
+                            <LiveAssistant />
 
-                            {isPerformanceModalOpen && (
-                                <FeedbackModal />
-                            )}
+                            <Suspense fallback={<ModalLoader />}>
+                                {isNoteModalOpen && (
+                                    <NoteGeneratorModal />
+                                )}
 
-                            {isFeedbackFormOpen && messageToReview && (
-                                <FeedbackForm />
-                            )}
-                        </Suspense>
-                    </>
+                                {viewingReport && (
+                                    <ReportViewerModal />
+                                )}
+
+                                {isConsultationModalOpen && (
+                                    <NewPatientConsultationModal
+                                        onClose={actions.toggleConsultationModal}
+                                        onCreateAndAnalyze={actions.handleCreateAndAnalyze}
+                                    />
+                                )}
+
+                                {isHuddleModalOpen && (
+                                    <DailyHuddleModal />
+                                )}
+
+                                {isPerformanceModalOpen && (
+                                    <FeedbackModal />
+                                )}
+
+                                {isFeedbackFormOpen && messageToReview && (
+                                    <FeedbackForm />
+                                )}
+                            </Suspense>
+                            <PatientSettingsModal />
+                        </>
                     </div>
                 </div>
 

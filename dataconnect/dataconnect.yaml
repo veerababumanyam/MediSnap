@@ -1,5 +1,5 @@
 specVersion: "v1"
-serviceId: "Zentis"
+serviceId: "zentis"
 location: "us-east4"
 schema:
   source: "./schema"
@@ -7,7 +7,7 @@ schema:
     postgresql:
       database: "fdcdb"
       cloudSql:
-        instanceId: "Zentis-fdc"
+        instanceId: "zentis-fdc"
         # schemaValidation: "STRICT"     # STRICT mode makes Postgres schema match Data Connect exactly.
         # schemaValidation: "COMPATIBLE" # COMPATIBLE mode makes Postgres schema compatible with Data Connect.
 connectorDirs: []  # Add connector directories here when needed

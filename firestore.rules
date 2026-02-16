@@ -1,14 +1,36 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow users to read/write their own data
+    // Allow users to read/write their own profile data
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Allow authenticated users to access other collections (modify as needed for finer grain)
-    match /{document=**} {
+    // Patient records — authenticated users can access
+    match /patients/{patientId} {
       allow read, write: if request.auth != null;
+      
+      // Sub-collections: medications, labs, vitals, diagnoses, reports
+      match /medications/{docId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null;
+      }
+      match /labs/{docId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null;
+      }
+      match /vitals/{docId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null;
+      }
+      match /diagnoses/{docId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null;
+      }
+      match /reports/{docId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null;
+      }
     }
   }
 }

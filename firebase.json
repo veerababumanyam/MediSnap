@@ -49,8 +49,11 @@
     "providers": {
       "googleSignIn": {
         "oAuthBrandDisplayName": "Zentis",
-        "supportEmail": "veerababumanyam@gmail.com"
+        "supportEmail": "manyamgermany@gmail.com"
       }
     }
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }

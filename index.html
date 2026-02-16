@@ -20,6 +20,22 @@
   <!-- Web App Manifest -->
   <link rel="manifest" href="/site.webmanifest" />
 
+  <!-- Aggressive Service Worker Cleaner (Fix Localhost Conflicts) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        for (let registration of registrations) {
+          console.warn('Unregistering found service worker:', registration);
+          registration.unregister();
+        }
+      });
+      // Force reload if controller is active but broken
+      if (navigator.serviceWorker.controller) {
+        console.warn('Active service worker detected. Attempting to bypass...');
+      }
+    }
+  </script>
+
   <!-- Microsoft Tiles -->
   <meta name="msapplication-TileColor" content="#2563eb" />
   <meta name="msapplication-config" content="/browserconfig.xml" />

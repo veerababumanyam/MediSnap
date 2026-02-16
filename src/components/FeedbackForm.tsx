@@ -55,7 +55,7 @@ export const FeedbackForm: React.FC = () => {
         <header className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <h2 id="feedback-form-title" className="text-lg font-bold text-gray-800 dark:text-gray-100">Provide Feedback on AI Response</h2>
           <button onClick={closeFeedbackForm} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700" aria-label="Close">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </header>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">

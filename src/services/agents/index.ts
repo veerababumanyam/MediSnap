@@ -141,6 +141,9 @@ export const runAudioTranscriptionAgent = runAudioTranscriptionAgent_internal;
 export const generateSpeechAgent = generateSpeechAgent_internal;
 export const runStructuredExtractionAgent = runStructuredExtractionAgent_internal;
 
+export { runImageExtractionAgent, runTextExtractionAgent, runMultiImageExtractionAgent } from './extractionAgents';
+export type { ExtractionResult } from './extractionAgents';
+
 export const runClinicalNoteGeneratorAgent = runClinicalNoteGeneratorAgent_internal;
 
 export const runMultiSpecialistReviewAgent = runMultiSpecialistReviewAgent_internal;

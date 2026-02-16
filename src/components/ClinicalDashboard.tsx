@@ -12,6 +12,7 @@ import { TrashIcon } from './icons/TrashIcon';
 import { PlusCircleIcon } from './icons/PlusCircleIcon';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { extractMedicationEvents } from '../utils';
+import { SettingsIcon } from './icons/SettingsIcon'; // NEW
 import type { Report, Patient, MedicationEvent, ClinicalTask } from '../types';
 
 // Helper to get text content from a report
@@ -223,7 +224,7 @@ const TaskList: React.FC<{ tasks: ClinicalTask[], onAddTask: (text: string) => v
 export const ClinicalDashboard: React.FC = () => {
     const { state, actions } = useAppContext();
     const { selectedPatient, isDashboardOpen } = state;
-    const { toggleDashboard, handleUpdateTasks, showToast } = actions;
+    const { toggleDashboard, handleUpdateTasks, showToast, toggleSettings } = actions; // Added toggleSettings
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
@@ -297,15 +298,14 @@ export const ClinicalDashboard: React.FC = () => {
                     <h2 className="text-sm font-bold tracking-wide">CLINICAL SNAPSHOT</h2>
                 </div>
                 <div className="flex items-center space-x-2">
-                    <a
-                        href="http://localhost:5001"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-gray-400 hover:text-blue-500 p-1 hover:bg-white/20 rounded-lg transition-colors"
-                        title="Open ADK Inspector"
+                    <button
+                        onClick={toggleSettings}
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 hover:bg-white/20 rounded-lg transition-colors"
+                        title="Patient Settings"
                     >
-                        <SidebarRightIcon className="w-5 h-5 rotate-180" /> {/* Reusing icon for external link visual */}
-                    </a>
+                        <SettingsIcon className="w-5 h-5" />
+                    </button>
+
                     <button
                         onClick={toggleDashboard}
                         className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 hover:bg-white/20 rounded-lg transition-colors"

@@ -17,6 +17,9 @@ import { SparklesIcon } from './icons/SparklesIcon';
 import { CheckCircleIcon } from './icons/ChecklistIcons';
 import { CompareIcon } from './icons/CompareIcon';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon'; // NEW
+import { ExtractedDataPanel } from './ExtractedDataPanel'; // NEW
+import { TrashIcon } from './icons/TrashIcon';
+import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 
 const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -35,6 +38,8 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
     const [activeFilter, setActiveFilter] = useState<string>('All');
     const [isSelectMode, setIsSelectMode] = useState(false);
     const [selectedReportIds, setSelectedReportIds] = useState<Set<string>>(new Set());
+    const [activeTab, setActiveTab] = useState<'documents' | 'extracted'>('documents');
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     // Reset selection when patient changes
     useEffect(() => {
@@ -79,6 +84,19 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
             await actions.handleAddReport(selectedPatient.id, reportData, file);
             setIsUploading(false);
             actions.showToast("Document analyzed and added to your health profile.", "success");
+        }
+    };
+
+    const confirmDelete = async () => {
+        if (selectedPatient && selectedReportIds.size > 0) {
+            const reportIds = Array.from(selectedReportIds);
+            // Ideally we could batch delete, but for now loop is fine
+            for (const id of reportIds) {
+                await actions.handleDeleteReport(selectedPatient.id, id);
+            }
+            setSelectedReportIds(new Set());
+            setIsSelectMode(false);
+            setIsDeleteModalOpen(false);
         }
     };
 
@@ -129,8 +147,12 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
                                 <ChevronLeftIcon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                             </button>
                         )}
-                        <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/30 flex items-center justify-center flex-shrink-0">
-                            <UserIcon className="w-6 h-6 text-white" />
+                        <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            {selectedPatient.photoURL ? (
+                                <img src={selectedPatient.photoURL} alt={selectedPatient.name} className="w-full h-full object-cover" />
+                            ) : (
+                                <UserIcon className="w-6 h-6 text-white" />
+                            )}
                         </div>
                         {!isPatientListCollapsed && (
                             <div>
@@ -172,21 +194,46 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
                             />
                         </div>
 
-                        {/* Filter Pills */}
-                        <div className="flex space-x-2 overflow-x-auto pb-1 no-scrollbar mask-gradient-right">
-                            {availableTypes.map(type => (
-                                <button
-                                    key={type}
-                                    onClick={() => setActiveFilter(type)}
-                                    className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors border ${activeFilter === type
-                                        ? 'bg-blue-600 text-white border-blue-600'
-                                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                        }`}
-                                >
-                                    {type}
-                                </button>
-                            ))}
+                        {/* Tab Toggle: Documents vs Extracted Data */}
+                        <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+                            <button
+                                onClick={() => setActiveTab('documents')}
+                                className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'documents'
+                                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                    }`}
+                            >
+                                Documents
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('extracted')}
+                                className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1 ${activeTab === 'extracted'
+                                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                    }`}
+                            >
+                                <SparklesIcon className="w-3 h-3" />
+                                Health Data
+                            </button>
                         </div>
+
+                        {/* Filter Pills (only show for documents tab) */}
+                        {activeTab === 'documents' && (
+                            <div className="flex space-x-2 overflow-x-auto pb-1 no-scrollbar mask-gradient-right">
+                                {availableTypes.map(type => (
+                                    <button
+                                        key={type}
+                                        onClick={() => setActiveFilter(type)}
+                                        className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors border ${activeFilter === type
+                                            ? 'bg-blue-600 text-white border-blue-600'
+                                            : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                            }`}
+                                    >
+                                        {type}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </header>
@@ -198,85 +245,92 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
                 </div>
             )}
 
-            {/* Document List */}
+            {/* Content Area: Documents or Extracted Data */}
             {!isPatientListCollapsed ? (
-                <div className="flex-1 overflow-y-auto px-4 pb-28 custom-scrollbar">
-                    <div className="flex items-center justify-between mb-2 sticky top-0 bg-[#f8fafc] dark:bg-[#020617] py-2 z-10">
-                        <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                            {activeFilter === 'All' ? 'All Documents' : `${activeFilter}s`} ({filteredReports.length})
-                        </h3>
-                        <button
-                            onClick={() => {
-                                setIsSelectMode(!isSelectMode);
-                                if (isSelectMode) setSelectedReportIds(new Set()); // Clear on exit
-                            }}
-                            className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors ${isSelectMode ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
-                        >
-                            {isSelectMode ? 'Done' : 'Select'}
-                        </button>
+                activeTab === 'extracted' ? (
+                    /* Extracted Data Tab */
+                    <div className="flex-1 overflow-y-auto pb-28 custom-scrollbar">
+                        <ExtractedDataPanel />
                     </div>
-
-                    <div className="space-y-2">
-                        {filteredReports.map(report => {
-                            const isSelected = selectedReportIds.has(report.id);
-                            return (
-                                <div
-                                    key={report.id}
-                                    onClick={() => {
-                                        if (isSelectMode) {
-                                            toggleReportSelection(report.id);
-                                        } else {
-                                            actions.setViewingReport({ patient: selectedPatient, initialReportId: report.id });
-                                        }
-                                    }}
-                                    className={`group flex items-center p-3 rounded-xl cursor-pointer transition-all shadow-sm border 
-                                ${isSelected
-                                            ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-                                            : 'bg-white/60 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 border-transparent hover:border-blue-200 dark:hover:border-blue-800'
-                                        }`}
-                                >
-                                    {isSelectMode && (
-                                        <div className={`mr-3 w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'}`}>
-                                            {isSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                                        </div>
-                                    )}
-
-                                    <div className={`p-2 rounded-lg mr-3 transition-colors ${isSelected ? 'bg-blue-100 dark:bg-blue-900/50' : 'bg-blue-50 dark:bg-blue-900/30 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50'}`}>
-                                        <ReportTypeIcon type={report.type} className={`w-5 h-5 ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-blue-600 dark:text-blue-400'}`} />
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className={`text-sm font-semibold truncate ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-gray-800 dark:text-gray-200'}`}>{report.title}</h4>
-                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center justify-between mt-0.5">
-                                            <span>{report.type}</span>
-                                            <span>{formatDate(report.date)}</span>
-                                        </p>
-                                    </div>
-
-                                    {/* Quick Action - Single Analyze */}
-                                    {!isSelectMode && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                actions.handleAnalyzeSingleReport(report.id);
-                                            }}
-                                            className="ml-2 p-1.5 rounded-full text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 opacity-0 group-hover:opacity-100 transition-all focus:opacity-100"
-                                            title="Quick Analyze"
-                                        >
-                                            <SparklesIcon className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {filteredReports.length === 0 && (
-                        <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
-                            No documents found.
+                ) : (
+                    <div className="flex-1 overflow-y-auto px-4 pb-28 custom-scrollbar">
+                        <div className="flex items-center justify-between mb-2 sticky top-0 bg-[#f8fafc] dark:bg-[#020617] py-2 z-10">
+                            <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                                {activeFilter === 'All' ? 'All Documents' : `${activeFilter}s`} ({filteredReports.length})
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setIsSelectMode(!isSelectMode);
+                                    if (isSelectMode) setSelectedReportIds(new Set()); // Clear on exit
+                                }}
+                                className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors ${isSelectMode ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                            >
+                                {isSelectMode ? 'Done' : 'Select'}
+                            </button>
                         </div>
-                    )}
-                </div>
+
+                        <div className="space-y-2">
+                            {filteredReports.map(report => {
+                                const isSelected = selectedReportIds.has(report.id);
+                                return (
+                                    <div
+                                        key={report.id}
+                                        onClick={() => {
+                                            if (isSelectMode) {
+                                                toggleReportSelection(report.id);
+                                            } else {
+                                                actions.setViewingReport({ patient: selectedPatient, initialReportId: report.id });
+                                            }
+                                        }}
+                                        className={`group flex items-center p-3 rounded-xl cursor-pointer transition-all shadow-sm border 
+                                ${isSelected
+                                                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                                                : 'bg-white/60 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 border-transparent hover:border-blue-200 dark:hover:border-blue-800'
+                                            }`}
+                                    >
+                                        {isSelectMode && (
+                                            <div className={`mr-3 w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'}`}>
+                                                {isSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                            </div>
+                                        )}
+
+                                        <div className={`p-2 rounded-lg mr-3 transition-colors ${isSelected ? 'bg-blue-100 dark:bg-blue-900/50' : 'bg-blue-50 dark:bg-blue-900/30 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50'}`}>
+                                            <ReportTypeIcon type={report.type} className={`w-5 h-5 ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-blue-600 dark:text-blue-400'}`} />
+                                        </div>
+
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className={`text-sm font-semibold truncate ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-gray-800 dark:text-gray-200'}`}>{report.title}</h4>
+                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center justify-between mt-0.5">
+                                                <span>{report.type}</span>
+                                                <span>{formatDate(report.date)}</span>
+                                            </p>
+                                        </div>
+
+                                        {/* Quick Action - Single Analyze */}
+                                        {!isSelectMode && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    actions.handleAnalyzeSingleReport(report.id);
+                                                }}
+                                                className="ml-2 p-1.5 rounded-full text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 opacity-0 group-hover:opacity-100 transition-all focus:opacity-100"
+                                                title="Quick Analyze"
+                                            >
+                                                <SparklesIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {filteredReports.length === 0 && (
+                            <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
+                                No documents found.
+                            </div>
+                        )}
+                    </div>
+                )
             ) : (
                 /* Collapsed View */
                 <div className="flex flex-col items-center flex-1 py-4 w-full space-y-4">
@@ -330,8 +384,24 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
                         <SparklesIcon className="w-5 h-5" />
                         <span className="font-bold">Analyze Selected ({selectedReportIds.size})</span>
                     </button>
+                    {/* Delete Button */}
+                    <button
+                        onClick={() => setIsDeleteModalOpen(true)}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl shadow-xl flex items-center justify-center space-x-2 transition-all hover:scale-[1.02] animate-slideUpFade"
+                    >
+                        <TrashIcon className="w-5 h-5" />
+                        <span className="font-bold">Delete Selected ({selectedReportIds.size})</span>
+                    </button>
                 </div>
             )}
+
+            <DeleteConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Reports"
+                message={`Are you sure you want to delete ${selectedReportIds.size} selected report${selectedReportIds.size !== 1 ? 's' : ''}? This action cannot be undone.`}
+            />
         </div>
     );
 };
