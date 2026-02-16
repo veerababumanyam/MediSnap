@@ -135,16 +135,21 @@ export const getPatient = async (patientId: string): Promise<Patient | null> => 
     const reports: Report[] = reportsSnap.docs
       .map(d => {
         const data = d.data();
+        const resolvedText = data.extractedText || data.rawTextForAnalysis || '';
+        const cType = data.contentType || 'pdf'; // backward-compat default
         return {
           id: d.id,
           type: data.type as Report['type'],
           date: data.date,
           title: data.title,
-          content: { type: 'pdf', url: data.downloadUrl, rawText: '' },
+          content: cType === 'text'
+            ? (resolvedText || '')
+            : { type: cType, url: data.downloadUrl, ...(cType === 'pdf' ? { rawText: resolvedText } : {}) } as any,
+          rawTextForAnalysis: resolvedText || null,
           aiSummary: data.aiSummary,
           keyFindings: data.keyFindings,
-          isDeleted: data.isDeleted || false, // NEW
-          deletedAt: data.deletedAt || null     // NEW
+          isDeleted: data.isDeleted || false,
+          deletedAt: data.deletedAt || null
         } as Report;
       })
       .filter(r => !r.isDeleted); // Filter out soft-deleted reports
@@ -217,16 +222,35 @@ export const addReportMetadata = async (patientId: string, report: Report) => {
   const contentUrl = (typeof report.content === 'object' && report.content !== null && 'url' in report.content)
     ? (report.content as any).url
     : '';
-  const docData = {
+  // Derive the original content type so we can restore it on read
+  const contentType = (typeof report.content === 'object' && report.content !== null && 'type' in report.content)
+    ? (report.content as any).type   // 'image' | 'pdf' | 'dicom' | 'link' | 'live_session'
+    : 'text';
+
+  // Capture raw text at upload time (PDF client-side extraction, text file, etc.)
+  const rawTextForAnalysis = (() => {
+    if (report.rawTextForAnalysis) return report.rawTextForAnalysis;
+    if (typeof report.content === 'string') return report.content;
+    if (typeof report.content === 'object' && report.content.type === 'pdf' && report.content.rawText) return report.content.rawText;
+    return null;
+  })();
+
+  const docData: Record<string, any> = {
     title: report.title,
     type: report.type,
     date: report.date || new Date().toISOString(),
     extractionStatus: 'pending',
     aiSummary: report.aiSummary,
     keyFindings: report.keyFindings,
-    unstructuredData: report.unstructuredData, // NEW
+    unstructuredData: report.unstructuredData,
+    fileHash: report.fileHash,
+    tags: report.tags || [],
     storagePath: contentUrl,
     downloadUrl: contentUrl,
+    contentType,                                               // NEW: preserve original media type
+    rawTextForAnalysis: rawTextForAnalysis                      // NEW: persist text for later analysis
+      ? rawTextForAnalysis.substring(0, 50000)                 // Firestore field-size guard
+      : null,
     createdAt: Date.now()
   };
 
@@ -382,6 +406,9 @@ export const updateReportExtractionStatus = async (
   try {
     const reportRef = doc(db, PATIENTS_COLLECTION, patientId, 'reports', reportId);
     const updateData: any = { extractionStatus: status };
+    if (status === 'completed') {
+      updateData.tags = arrayUnion('processed', 'smart-extracted');
+    }
     if (rawExtractedText) {
       updateData.extractedText = rawExtractedText.substring(0, 50000); // Firestore field size limit
     }
@@ -430,6 +457,45 @@ export const exportAllData = async (): Promise<any> => {
 
 export const importData = async (data: any): Promise<void> => {
   console.warn("importData not implemented");
+};
+
+/**
+ * Checks if a report with the given file hash already exists for the patient.
+ * Returns the existing report if found, otherwise null.
+ */
+export const checkForDuplicateReport = async (patientId: string, fileHash: string): Promise<Report | null> => {
+  if (!fileHash) return null;
+  try {
+    const reportsRef = collection(db, PATIENTS_COLLECTION, patientId, 'reports');
+    const q = query(reportsRef, where('fileHash', '==', fileHash), limit(1));
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+      const data = snapshot.docs[0].data();
+      const resolvedText = data.extractedText || data.rawTextForAnalysis || '';
+      const cType = data.contentType || 'pdf';
+      return {
+        id: snapshot.docs[0].id,
+        type: data.type as Report['type'],
+        date: data.date,
+        title: data.title,
+        content: cType === 'text'
+          ? (resolvedText || '')
+          : { type: cType, url: data.downloadUrl, ...(cType === 'pdf' ? { rawText: resolvedText } : {}) } as any,
+        rawTextForAnalysis: resolvedText || null,
+        aiSummary: data.aiSummary,
+        keyFindings: data.keyFindings,
+        unstructuredData: data.unstructuredData,
+        extractionStatus: data.extractionStatus,
+        tags: data.tags,
+        fileHash: data.fileHash
+      } as Report;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error checking for duplicate report:", error);
+    return null;
+  }
 };
 
 // --- SOFT DELETE IMPLEMENTATION ---
@@ -492,12 +558,17 @@ export const fetchDeletedReports = async (patientId: string): Promise<Report[]> 
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => {
       const data = d.data();
+      const resolvedText = data.extractedText || data.rawTextForAnalysis || '';
+      const cType = data.contentType || 'pdf';
       return {
         id: d.id,
         type: data.type as Report['type'],
         date: data.date,
         title: data.title,
-        content: { type: 'pdf', url: data.downloadUrl, rawText: '' },
+        content: cType === 'text'
+          ? (resolvedText || '')
+          : { type: cType, url: data.downloadUrl, ...(cType === 'pdf' ? { rawText: resolvedText } : {}) } as any,
+        rawTextForAnalysis: resolvedText || null,
         aiSummary: data.aiSummary,
         keyFindings: data.keyFindings,
         isDeleted: true,
@@ -512,17 +583,24 @@ export const fetchDeletedReports = async (patientId: string): Promise<Report[]> 
       return snapshot.docs
         .map(d => ({ id: d.id, ...d.data() } as any))
         .filter(d => d.isDeleted === true)
-        .map(data => ({
-          id: data.id,
-          type: data.type as Report['type'],
-          date: data.date,
-          title: data.title,
-          content: { type: 'pdf', url: data.downloadUrl, rawText: '' },
-          aiSummary: data.aiSummary,
-          keyFindings: data.keyFindings,
-          isDeleted: true,
-          deletedAt: data.deletedAt
-        } as Report));
+        .map(data => {
+          const resolvedText = data.extractedText || data.rawTextForAnalysis || '';
+          const cType = data.contentType || 'pdf';
+          return {
+            id: data.id,
+            type: data.type as Report['type'],
+            date: data.date,
+            title: data.title,
+            content: cType === 'text'
+              ? (resolvedText || '')
+              : { type: cType, url: data.downloadUrl, ...(cType === 'pdf' ? { rawText: resolvedText } : {}) } as any,
+            rawTextForAnalysis: resolvedText || null,
+            aiSummary: data.aiSummary,
+            keyFindings: data.keyFindings,
+            isDeleted: true,
+            deletedAt: data.deletedAt
+          } as Report;
+        });
     }
     console.error("Error fetching deleted reports:", error);
     return [];

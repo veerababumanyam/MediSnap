@@ -466,7 +466,13 @@ export const runDailyHuddleAgent = async (patients: Patient[], ai: GoogleGenAI):
 
 export const runSingleReportAnalysisAgent = async (report: Report, patient: Patient, ai: GoogleGenAI, aiSettings: AiPersonalizationSettings): Promise<TextMessage> => {
     const textContent = getReportText(report);
-    const imageUrl = getImageReportUrl(report);
+    let imageUrl = getImageReportUrl(report);
+
+    // Fallback: if no text and no recognised image URL, try the download URL directly
+    // (handles legacy reports where contentType wasn't stored, e.g. uploaded images saved as 'pdf')
+    if (!textContent && !imageUrl && typeof report.content === 'object' && report.content !== null && 'url' in report.content) {
+        imageUrl = (report.content as any).url;
+    }
 
     // If this is an image report, try multimodal analysis with the actual image
     if (imageUrl && !textContent) {
@@ -494,7 +500,12 @@ export const runMultiReportAnalysisAgent = async (reports: Report[], patient: Pa
 
     for (const report of reports) {
         const textContent = getReportText(report);
-        const imageUrl = getImageReportUrl(report);
+        let imageUrl = getImageReportUrl(report);
+
+        // Fallback: try download URL directly for legacy reports
+        if (!textContent && !imageUrl && typeof report.content === 'object' && report.content !== null && 'url' in report.content) {
+            imageUrl = (report.content as any).url;
+        }
 
         if (textContent) {
             parts.push({ text: `--- ${report.title} (${report.type}, ${report.date}) ---\n${textContent}\n` });
@@ -523,7 +534,13 @@ export const runReportComparisonAgent = async (currentReport: Report, previousRe
 
     const addReportContent = async (report: Report) => {
         const textContent = getReportText(report);
-        const imageUrl = getImageReportUrl(report);
+        let imageUrl = getImageReportUrl(report);
+
+        // Fallback: try download URL directly for legacy reports
+        if (!textContent && !imageUrl && typeof report.content === 'object' && report.content !== null && 'url' in report.content) {
+            imageUrl = (report.content as any).url;
+        }
+
         if (textContent) {
             parts.push({ text: textContent + '\n\n' });
         } else if (imageUrl) {

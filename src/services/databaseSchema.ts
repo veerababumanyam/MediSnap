@@ -118,6 +118,9 @@ export interface ReportDocument {
     extractionStatus: 'pending' | 'processing' | 'completed' | 'failed';
     aiSummary?: string;
     keyFindings?: string[];
+    unstructuredData?: Record<string, any>;
+    fileHash?: string; // NEW
+    tags?: string[]; // NEW
 
     createdAt: number;
     uploadedBy: string;

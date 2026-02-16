@@ -23,6 +23,8 @@ export interface Report {
     aiSummary?: string;
     keyFindings?: string[];
     unstructuredData?: Record<string, any>; // NEW: For capturing data that doesn't fit into standard schemas
+    fileHash?: string; // NEW: SHA-256 hash for duplicate detection
+    tags?: string[]; // NEW: e.g. ['processed', 'smart-extracted']
     rawTextForAnalysis?: string | null; // NEW: For AI extraction
     isDeleted?: boolean; // NEW: Soft delete flag
     deletedAt?: number | null; // NEW: Timestamp of deletion
