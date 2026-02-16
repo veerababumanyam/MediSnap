@@ -3,19 +3,23 @@ import React, { useEffect, useRef } from 'react';
 import { AlertTriangleIcon } from './icons/AlertTriangleIcon';
 
 interface DeleteConfirmationModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  title?: string;
-  message?: string;
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    title?: string;
+    message?: string;
+    confirmText?: string;
+    cancelText?: string;
 }
 
-export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({ 
-    isOpen, 
-    onClose, 
-    onConfirm, 
+export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
+    isOpen,
+    onClose,
+    onConfirm,
     title = "Confirm Deletion",
-    message = "Are you sure you want to delete this item? This action cannot be undone."
+    message = "Are you sure you want to delete this item? This action cannot be undone.",
+    confirmText = "Delete",
+    cancelText = "Cancel"
 }) => {
     const cancelRef = useRef<HTMLButtonElement>(null);
 
@@ -38,13 +42,13 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
     if (!isOpen) return null;
 
     return (
-        <div 
+        <div
             className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm"
             role="dialog"
             aria-modal="true"
             onClick={onClose}
         >
-            <div 
+            <div
                 className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn"
                 onClick={(e) => e.stopPropagation()}
             >
@@ -62,13 +66,13 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
                             onClick={onClose}
                             className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                         >
-                            Cancel
+                            {cancelText}
                         </button>
                         <button
                             onClick={() => { onConfirm(); onClose(); }}
                             className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30"
                         >
-                            Delete
+                            {confirmText}
                         </button>
                     </div>
                 </div>

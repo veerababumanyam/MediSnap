@@ -3,7 +3,7 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback, u
 import type { AppState, Action } from './reducer';
 import type { Patient, Message, TextMessage, Report, UploadableFile, Feedback, AiModel, ToastNotification, ClinicalDebateMessage, MultiSpecialistReviewMessage, ClinicalTask } from '../types';
 import { appReducer, initialState } from './reducer';
-import { fetchPatients, updatePatient, addReportMetadata, saveExtractedData, createPatient, fetchExtractedData, getPatient, deleteReport } from '../services/ehrService';
+import { fetchPatients, updatePatient, addReportMetadata, saveExtractedData, createPatient, fetchExtractedData, getPatient, softDeleteReport, restoreReport, permanentlyDeleteReport } from '../services/ehrService';
 import * as apiManager from '../services/apiManager';
 import { uploadReportAttachment } from '../services/storageService'; // NEW
 import { runExtractionPipeline, type ExtractionProgress, type ExtractedPatientData } from '../services/documentExtractionPipeline';
@@ -50,6 +50,8 @@ interface AppContextType {
         handleSaveNotes: (patientId: string, notes: string) => Promise<void>;
         handleAddReport: (patientId: string, reportData: Omit<Report, 'id'>, file?: File) => Promise<void>;
         handleDeleteReport: (patientId: string, reportId: string) => Promise<void>;
+        handleRestoreReport: (patientId: string, reportId: string) => Promise<void>;
+        handlePermanentDeleteReport: (patientId: string, reportId: string) => Promise<void>;
         loadExtractedData: (patientId: string) => Promise<ExtractedPatientData>;
         extractedData: ExtractedPatientData | null;
         extractionProgress: ExtractionProgress | null;
@@ -240,7 +242,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (error.name === 'QuotaExceededError' || error.code === 22 || error.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
                 console.warn(`LocalStorage quota exceeded saving '${key}'. Attempting cleanup...`);
                 showToast("Storage limit reached. Optimizing space...", "warning");
-                
+
                 // 1. Attempt to clear temporary caches from services
                 const cachePrefixes = ['daily_huddle_', 'analysis_cache_', 'briefing_cache_', 'med_search_'];
                 const keysToRemove: string[] = [];
@@ -250,11 +252,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         keysToRemove.push(k);
                     }
                 }
-                
+
                 if (keysToRemove.length > 0) {
                     keysToRemove.forEach(k => localStorage.removeItem(k));
                     console.info(`Cleared ${keysToRemove.length} temporary cache items to free space.`);
-                    
+
                     try {
                         localStorage.setItem(key, JSON.stringify(value));
                         return;
@@ -492,14 +494,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const handleDeleteReport = useCallback(async (patientId: string, reportId: string) => {
         try {
-            await deleteReport(patientId, reportId);
+            await softDeleteReport(patientId, reportId);
             dispatch({ type: 'DELETE_REPORT', payload: { patientId, reportId } });
-            showToast("Report deleted successfully.", 'success');
+            showToast("Report moved to trash.", 'success');
         } catch (error) {
             console.error("Failed to delete report:", error);
             showToast("Failed to delete report.", 'error');
         }
     }, [showToast]);
+
+    const handleRestoreReport = useCallback(async (patientId: string, reportId: string) => {
+        try {
+            await restoreReport(patientId, reportId);
+            dispatch({ type: 'RESTORE_REPORT', payload: { patientId, reportId } });
+            showToast("Report restored.", 'success');
+        } catch (error) {
+            console.error("Failed to restore report:", error);
+            showToast("Failed to restore report.", 'error');
+        }
+    }, [showToast]);
+
+    const handlePermanentDeleteReport = useCallback(async (patientId: string, reportId: string) => {
+        try {
+            const patient = allPatients.find(p => p.id === patientId);
+            const report = patient?.reports.find(r => r.id === reportId);
+
+            // Get download URL if it exists to delete from storage
+            let downloadUrl;
+            if (report && typeof report.content === 'object' && report.content !== null && 'url' in report.content) {
+                downloadUrl = (report.content as any).url;
+            }
+
+            await permanentlyDeleteReport(patientId, reportId, downloadUrl);
+            dispatch({ type: 'PERMANENTLY_DELETE_REPORT', payload: { patientId, reportId } });
+            showToast("Report deleted permanently.", 'success');
+        } catch (error) {
+            console.error("Failed to permanently delete report:", error);
+            showToast("Failed to delete report permanently.", 'error');
+        }
+    }, [allPatients, showToast]);
 
     // Load extracted data from Firestore
     const loadExtractedDataFn = useCallback(async (patientId: string): Promise<ExtractedPatientData> => {

@@ -1,5 +1,5 @@
 import { storage } from './firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 /**
  * Uploads a file to Firebase Storage.
@@ -43,4 +43,18 @@ export const uploadChatAttachment = async (file: File, userId: string): Promise<
     const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
     const path = `users/${userId}/chat_uploads/${timestamp}_${safeName}`;
     return uploadFile(file, path);
+};
+
+/**
+ * Deletes a file from Firebase Storage using its download URL.
+ * @param downloadUrl The download URL of the file to delete.
+ */
+export const deleteFileFromUrl = async (downloadUrl: string): Promise<void> => {
+    try {
+        const storageRef = ref(storage, downloadUrl);
+        await deleteObject(storageRef);
+    } catch (error) {
+        console.error("Error deleting file from storage:", error);
+        throw error;
+    }
 };

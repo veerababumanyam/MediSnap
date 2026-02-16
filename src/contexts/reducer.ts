@@ -48,7 +48,9 @@ export type Action =
     | { type: 'SET_CHAT_LOADING'; payload: boolean }
     | { type: 'SET_MESSAGES'; payload: { patientId: string; messages: Message[] } }
     | { type: 'ADD_MESSAGE'; payload: { patientId: string; message: Message } }
-    | { type: 'DELETE_REPORT'; payload: { patientId: string; reportId: string } }
+    | { type: 'DELETE_REPORT'; payload: { patientId: string; reportId: string } } // Soft Delete
+    | { type: 'RESTORE_REPORT'; payload: { patientId: string; reportId: string } }
+    | { type: 'PERMANENTLY_DELETE_REPORT'; payload: { patientId: string; reportId: string } }
     | { type: 'UPDATE_MESSAGE'; payload: { patientId: string; message: Message } }
     | { type: 'SET_RECOMMENDED_QUESTIONS'; payload: string[] }
     | { type: 'UPDATE_QUESTION_HISTORY'; payload: { patientId: string; question: string } }
@@ -158,7 +160,10 @@ export const appReducer = (state: AppState, action: Action): AppState => {
                 if (p.id === patientId) {
                     return {
                         ...p,
-                        reports: p.reports.filter(r => r.id !== reportId)
+                        ...p,
+                        reports: p.reports.map(r =>
+                            r.id === reportId ? { ...r, isDeleted: true, deletedAt: Date.now() } : r
+                        )
                     };
                 }
                 return p;
@@ -168,6 +173,34 @@ export const appReducer = (state: AppState, action: Action): AppState => {
                 ...state,
                 allPatients: updatedPatients
             };
+        }
+        case 'RESTORE_REPORT': {
+            const { patientId, reportId } = action.payload;
+            const updatedPatients = state.allPatients.map(p => {
+                if (p.id === patientId) {
+                    return {
+                        ...p,
+                        reports: p.reports.map(r =>
+                            r.id === reportId ? { ...r, isDeleted: false, deletedAt: null } : r
+                        )
+                    };
+                }
+                return p;
+            });
+            return { ...state, allPatients: updatedPatients };
+        }
+        case 'PERMANENTLY_DELETE_REPORT': {
+            const { patientId, reportId } = action.payload;
+            const updatedPatients = state.allPatients.map(p => {
+                if (p.id === patientId) {
+                    return {
+                        ...p,
+                        reports: p.reports.filter(r => r.id !== reportId)
+                    };
+                }
+                return p;
+            });
+            return { ...state, allPatients: updatedPatients };
         }
         case 'SET_RECOMMENDED_QUESTIONS':
             return { ...state, recommendedQuestions: action.payload };

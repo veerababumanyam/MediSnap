@@ -1,9 +1,10 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 import { DocumentIcon } from './icons/DocumentIcon';
 import { UploadIcon } from './icons/UploadIcon';
 import { SearchIcon } from './icons/SearchIcon';
+import { fetchDeletedReports } from '../services/ehrService';
+import { Report } from '../types';
 import { SettingsIcon } from './icons/SettingsIcon';
 import { ReportTypeIcon } from './icons/ReportTypeIcon';
 import { SunIcon } from './icons/SunIcon';
@@ -16,8 +17,8 @@ import { ModalLoader } from './ModalLoader';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { CheckCircleIcon } from './icons/ChecklistIcons';
 import { CompareIcon } from './icons/CompareIcon';
-import { ChevronLeftIcon } from './icons/ChevronLeftIcon'; // NEW
-import { ExtractedDataPanel } from './ExtractedDataPanel'; // NEW
+import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
+import { ExtractedDataPanel } from './ExtractedDataPanel';
 import { TrashIcon } from './icons/TrashIcon';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 
@@ -38,15 +39,27 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
     const [activeFilter, setActiveFilter] = useState<string>('All');
     const [isSelectMode, setIsSelectMode] = useState(false);
     const [selectedReportIds, setSelectedReportIds] = useState<Set<string>>(new Set());
-    const [activeTab, setActiveTab] = useState<'documents' | 'extracted'>('documents');
+    const [activeTab, setActiveTab] = useState<'documents' | 'extracted' | 'trash'>('documents');
+    const [deletedReports, setDeletedReports] = useState<Report[]>([]);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [deleteMode, setDeleteMode] = useState<'soft' | 'permanent'>('soft');
 
     // Reset selection when patient changes
     useEffect(() => {
         setSelectedReportIds(new Set());
         setIsSelectMode(false);
         setActiveFilter('All');
+        if (activeTab === 'trash') {
+            setActiveTab('documents'); // Reset to documents on patient change
+        }
     }, [selectedPatient?.id]);
+
+    // Fetch deleted reports when entering trash tab
+    useEffect(() => {
+        if (activeTab === 'trash' && selectedPatient) {
+            fetchDeletedReports(selectedPatient.id).then(setDeletedReports);
+        }
+    }, [activeTab, selectedPatient, state.allPatients]); // Reload if patients update (e.g. after restore)
 
     // Derived list of unique report types present for this patient
     const availableTypes = useMemo(() => {
@@ -90,13 +103,37 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
     const confirmDelete = async () => {
         if (selectedPatient && selectedReportIds.size > 0) {
             const reportIds = Array.from(selectedReportIds);
-            // Ideally we could batch delete, but for now loop is fine
+
             for (const id of reportIds) {
-                await actions.handleDeleteReport(selectedPatient.id, id);
+                if (deleteMode === 'permanent') {
+                    await actions.handlePermanentDeleteReport(selectedPatient.id, id as string);
+                } else {
+                    await actions.handleDeleteReport(selectedPatient.id, id as string);
+                }
             }
+
+            // Refresh trash list if we just deleted permanently
+            if (activeTab === 'trash' && deleteMode === 'permanent') {
+                const updated = deletedReports.filter(r => !selectedReportIds.has(r.id));
+                setDeletedReports(updated);
+            }
+
             setSelectedReportIds(new Set());
             setIsSelectMode(false);
             setIsDeleteModalOpen(false);
+        }
+    };
+
+    const handleRestoreSelected = async () => {
+        if (selectedPatient && selectedReportIds.size > 0) {
+            const reportIds = Array.from(selectedReportIds);
+            for (const id of reportIds) {
+                await actions.handleRestoreReport(selectedPatient.id, id as string);
+            }
+            // Remove from local trash state immediately for UI responsiveness
+            setDeletedReports(prev => prev.filter(r => !selectedReportIds.has(r.id)));
+            setSelectedReportIds(new Set());
+            setIsSelectMode(false);
         }
     };
 
@@ -199,8 +236,8 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
                             <button
                                 onClick={() => setActiveTab('documents')}
                                 className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'documents'
-                                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                                     }`}
                             >
                                 Documents
@@ -208,12 +245,22 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
                             <button
                                 onClick={() => setActiveTab('extracted')}
                                 className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1 ${activeTab === 'extracted'
-                                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                                     }`}
                             >
                                 <SparklesIcon className="w-3 h-3" />
                                 Health Data
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('trash')}
+                                className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1 ${activeTab === 'trash'
+                                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                    }`}
+                            >
+                                <TrashIcon className="w-3 h-3" />
+                                Trash
                             </button>
                         </div>
 
@@ -252,7 +299,80 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
                     <div className="flex-1 overflow-y-auto pb-28 custom-scrollbar">
                         <ExtractedDataPanel />
                     </div>
+                ) : activeTab === 'trash' ? (
+                    /* Trash Tab */
+                    <div className="flex-1 overflow-y-auto px-4 pb-28 custom-scrollbar">
+                        <div className="flex items-center justify-between mb-2 sticky top-0 bg-[#f8fafc] dark:bg-[#020617] py-2 z-10">
+                            <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                                Trash ({deletedReports.length})
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setIsSelectMode(!isSelectMode);
+                                    if (isSelectMode) setSelectedReportIds(new Set());
+                                }}
+                                className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors ${isSelectMode ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                            >
+                                {isSelectMode ? 'Done' : 'Select'}
+                            </button>
+                        </div>
+                        <div className="space-y-2">
+                            {deletedReports.map(report => {
+                                const isSelected = selectedReportIds.has(report.id);
+                                return (
+                                    <div
+                                        key={report.id}
+                                        onClick={() => {
+                                            if (isSelectMode) {
+                                                toggleReportSelection(report.id);
+                                            }
+                                        }}
+                                        className={`group flex items-center p-3 rounded-xl cursor-copy transition-all shadow-sm border opacity-75 hover:opacity-100
+                                ${isSelected
+                                                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                                                : 'bg-white/60 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 border-transparent'
+                                            }`}
+                                    >
+                                        {isSelectMode && (
+                                            <div className={`mr-3 w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'bg-red-600 border-red-600' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'}`}>
+                                                {isSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                            </div>
+                                        )}
+                                        <div className={`p-2 rounded-lg mr-3 transition-colors bg-gray-100 dark:bg-gray-700`}>
+                                            <ReportTypeIcon type={report.type} className={`w-5 h-5 text-gray-500 dark:text-gray-400`} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className={`text-sm font-semibold truncate text-gray-600 dark:text-gray-300 line-through`}>{report.title}</h4>
+                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center justify-between mt-0.5">
+                                                <span>Deleted {report.deletedAt ? formatDate(new Date(report.deletedAt).toISOString()) : ''}</span>
+                                            </p>
+                                        </div>
+                                        {/* Restore Button (Single) */}
+                                        {!isSelectMode && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    actions.handleRestoreReport(selectedPatient.id, report.id);
+                                                    setDeletedReports(prev => prev.filter(r => r.id !== report.id));
+                                                }}
+                                                className="ml-2 p-1.5 rounded-full text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all"
+                                                title="Restore"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        {deletedReports.length === 0 && (
+                            <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
+                                Trash is empty.
+                            </div>
+                        )}
+                    </div>
                 ) : (
+                    /* Documents Tab */
                     <div className="flex-1 overflow-y-auto px-4 pb-28 custom-scrollbar">
                         <div className="flex items-center justify-between mb-2 sticky top-0 bg-[#f8fafc] dark:bg-[#020617] py-2 z-10">
                             <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
@@ -367,7 +487,7 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
             {isSelectMode && selectedReportIds.size > 0 && !isPatientListCollapsed && (
                 <div className="absolute bottom-4 left-4 right-4 z-30 flex flex-col gap-2">
                     {/* Compare Button (Only if exactly 2 selected) */}
-                    {selectedReportIds.size === 2 && (
+                    {selectedReportIds.size === 2 && activeTab !== 'trash' && (
                         <button
                             onClick={handleCompareSelected}
                             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl shadow-xl flex items-center justify-center space-x-2 transition-all hover:scale-[1.02] animate-slideUpFade"
@@ -377,21 +497,44 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
                         </button>
                     )}
                     {/* Analyze Button */}
-                    <button
-                        onClick={handleAnalyzeSelected}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl shadow-xl flex items-center justify-center space-x-2 transition-all hover:scale-[1.02] animate-slideUpFade"
-                    >
-                        <SparklesIcon className="w-5 h-5" />
-                        <span className="font-bold">Analyze Selected ({selectedReportIds.size})</span>
-                    </button>
-                    {/* Delete Button */}
-                    <button
-                        onClick={() => setIsDeleteModalOpen(true)}
-                        className="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl shadow-xl flex items-center justify-center space-x-2 transition-all hover:scale-[1.02] animate-slideUpFade"
-                    >
-                        <TrashIcon className="w-5 h-5" />
-                        <span className="font-bold">Delete Selected ({selectedReportIds.size})</span>
-                    </button>
+                    {activeTab !== 'trash' && (
+                        <button
+                            onClick={handleAnalyzeSelected}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl shadow-xl flex items-center justify-center space-x-2 transition-all hover:scale-[1.02] animate-slideUpFade"
+                        >
+                            <SparklesIcon className="w-5 h-5" />
+                            <span className="font-bold">Analyze Selected ({selectedReportIds.size})</span>
+                        </button>
+                    )}
+
+                    {/* Trash & Restore Buttons */}
+                    {activeTab === 'trash' ? (
+                        <>
+                            <button
+                                onClick={handleRestoreSelected}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl shadow-xl flex items-center justify-center space-x-2 transition-all hover:scale-[1.02] animate-slideUpFade"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                                <span className="font-bold">Restore Selected ({selectedReportIds.size})</span>
+                            </button>
+                            <button
+                                onClick={() => { setDeleteMode('permanent'); setIsDeleteModalOpen(true); }}
+                                className="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl shadow-xl flex items-center justify-center space-x-2 transition-all hover:scale-[1.02] animate-slideUpFade"
+                            >
+                                <TrashIcon className="w-5 h-5" />
+                                <span className="font-bold">Delete Forever ({selectedReportIds.size})</span>
+                            </button>
+                        </>
+                    ) : (
+                        /* Delete Button (Soft) */
+                        <button
+                            onClick={() => { setDeleteMode('soft'); setIsDeleteModalOpen(true); }}
+                            className="w-full bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 p-3 rounded-xl shadow-sm border border-red-200 dark:border-red-800 flex items-center justify-center space-x-2 transition-all hover:scale-[1.02] animate-slideUpFade"
+                        >
+                            <TrashIcon className="w-5 h-5" />
+                            <span className="font-bold">Move to Trash ({selectedReportIds.size})</span>
+                        </button>
+                    )}
                 </div>
             )}
 
@@ -399,8 +542,11 @@ export const HealthRecordSidebar: React.FC<{ onBack?: () => void }> = ({ onBack 
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={confirmDelete}
-                title="Delete Reports"
-                message={`Are you sure you want to delete ${selectedReportIds.size} selected report${selectedReportIds.size !== 1 ? 's' : ''}? This action cannot be undone.`}
+                title={deleteMode === 'permanent' ? "Delete Forever" : "Move to Trash"}
+                message={deleteMode === 'permanent'
+                    ? `Are you sure you want to permanently delete ${selectedReportIds.size} item${selectedReportIds.size !== 1 ? 's' : ''}? This action CANNOT be undone.`
+                    : `Are you sure you want to move ${selectedReportIds.size} item${selectedReportIds.size !== 1 ? 's' : ''} to the Trash? You can restore them later.`}
+                confirmText={deleteMode === 'permanent' ? "Delete Forever" : "Move to Trash"}
             />
         </div>
     );

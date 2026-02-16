@@ -23,6 +23,8 @@ export interface Report {
     aiSummary?: string;
     keyFindings?: string[];
     rawTextForAnalysis?: string | null; // NEW: For AI extraction
+    isDeleted?: boolean; // NEW: Soft delete flag
+    deletedAt?: number | null; // NEW: Timestamp of deletion
 }
 
 export interface VitalsLog {

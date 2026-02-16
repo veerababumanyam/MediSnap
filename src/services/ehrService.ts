@@ -11,7 +11,8 @@ import {
   addDoc,
   Timestamp,
   writeBatch,
-  deleteDoc
+  deleteDoc,
+  where // NEW
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -130,18 +131,22 @@ export const getPatient = async (patientId: string): Promise<Patient | null> => 
     if (latestBp) vitalsString += `BP ${latestBp.value}/${latestBp.value2 || '?'}`;
     if (latestHr) vitalsString += `, HR ${latestHr.value}`;
 
-    const reports: Report[] = reportsSnap.docs.map(d => {
-      const data = d.data();
-      return {
-        id: d.id,
-        type: data.type as Report['type'],
-        date: data.date,
-        title: data.title,
-        content: { type: 'pdf', url: data.downloadUrl, rawText: '' },
-        aiSummary: data.aiSummary,
-        keyFindings: data.keyFindings
-      } as Report;
-    });
+    const reports: Report[] = reportsSnap.docs
+      .map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          type: data.type as Report['type'],
+          date: data.date,
+          title: data.title,
+          content: { type: 'pdf', url: data.downloadUrl, rawText: '' },
+          aiSummary: data.aiSummary,
+          keyFindings: data.keyFindings,
+          isDeleted: data.isDeleted || false, // NEW
+          deletedAt: data.deletedAt || null     // NEW
+        } as Report;
+      })
+      .filter(r => !r.isDeleted); // Filter out soft-deleted reports
 
     // 4. Construct Final Domain Object
     return {
@@ -407,12 +412,100 @@ export const importData = async (data: any): Promise<void> => {
   console.warn("importData not implemented");
 };
 
-export const deleteReport = async (patientId: string, reportId: string): Promise<void> => {
+// --- SOFT DELETE IMPLEMENTATION ---
+
+export const softDeleteReport = async (patientId: string, reportId: string): Promise<void> => {
   try {
     const reportRef = doc(db, PATIENTS_COLLECTION, patientId, 'reports', reportId);
-    await deleteDoc(reportRef);
+    await updateDoc(reportRef, {
+      isDeleted: true,
+      deletedAt: Date.now()
+    });
   } catch (error) {
-    console.error("Error deleting report:", error);
+    console.error("Error soft deleting report:", error);
     throw error;
   }
 };
+
+export const restoreReport = async (patientId: string, reportId: string): Promise<void> => {
+  try {
+    const reportRef = doc(db, PATIENTS_COLLECTION, patientId, 'reports', reportId);
+    await updateDoc(reportRef, {
+      isDeleted: false,
+      deletedAt: null
+    });
+  } catch (error) {
+    console.error("Error restoring report:", error);
+    throw error;
+  }
+};
+
+import { deleteFileFromUrl } from './storageService'; // Ensure this import is added at the top too if not present
+
+export const permanentlyDeleteReport = async (patientId: string, reportId: string, downloadUrl?: string): Promise<void> => {
+  try {
+    // 1. Delete from Firestore
+    const reportRef = doc(db, PATIENTS_COLLECTION, patientId, 'reports', reportId);
+    await deleteDoc(reportRef);
+
+    // 2. Delete from Storage (if URL provided)
+    if (downloadUrl) {
+      await deleteFileFromUrl(downloadUrl);
+    }
+  } catch (error) {
+    console.error("Error permanently deleting report:", error);
+    throw error;
+  }
+};
+
+export const fetchDeletedReports = async (patientId: string): Promise<Report[]> => {
+  try {
+    const reportsRef = collection(db, PATIENTS_COLLECTION, patientId, 'reports');
+    // Fetch reports where isDeleted is true
+    const q = query(reportsRef, where("isDeleted", "==", true), orderBy("deletedAt", "desc"));
+
+    // Note: This query requires an index on isDeleted + deletedAt. 
+    // If it fails initially, we might need to fetch all and filter client-side 
+    // or just fetch all reports and filter in the UI if the list isn't huge.
+    // Given the architecture, let's try strict query first.
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        type: data.type as Report['type'],
+        date: data.date,
+        title: data.title,
+        content: { type: 'pdf', url: data.downloadUrl, rawText: '' },
+        aiSummary: data.aiSummary,
+        keyFindings: data.keyFindings,
+        isDeleted: true,
+        deletedAt: data.deletedAt
+      } as Report;
+    });
+  } catch (error: any) {
+    // Fallback: If index missing, fetch all and filter (less efficient but works for now)
+    if (error.code === 'failed-precondition') {
+      console.warn("Missing index for deleted reports query. Fetching all and filtering.");
+      const snapshot = await getDocs(collection(db, PATIENTS_COLLECTION, patientId, 'reports'));
+      return snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() } as any))
+        .filter(d => d.isDeleted === true)
+        .map(data => ({
+          id: data.id,
+          type: data.type as Report['type'],
+          date: data.date,
+          title: data.title,
+          content: { type: 'pdf', url: data.downloadUrl, rawText: '' },
+          aiSummary: data.aiSummary,
+          keyFindings: data.keyFindings,
+          isDeleted: true,
+          deletedAt: data.deletedAt
+        } as Report));
+    }
+    console.error("Error fetching deleted reports:", error);
+    return [];
+  }
+};
+
