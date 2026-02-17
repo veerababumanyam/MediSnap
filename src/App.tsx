@@ -3,7 +3,7 @@ import React, { Suspense, useState, useEffect } from 'react';
 import { HealthRecordSidebar } from './components/HealthRecordSidebar';
 import { PatientSelector } from './components/PatientSelector';
 import { PatientSettingsModal } from './components/PatientSettingsModal'; // NEW
-import { ChatWindow } from './components/ChatWindow';
+import { ChatInterfaceStitch as ChatWindow } from './components/ChatInterfaceStitch';
 import { ThemeProvider } from './hooks/useTheme';
 import { useAppContext } from './contexts/AppContext';
 import { ToastContainer } from './components/ToastContainer';

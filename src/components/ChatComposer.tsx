@@ -308,7 +308,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = React.memo(({ onSendMes
                 <button
                     onClick={handleSendMessageClick}
                     disabled={isLoading || (!input.trim() && stagedFiles.length === 0)}
-                    className="p-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95"
+                    className="p-2.5 bg-stitch-primary text-stitch-bg-dark rounded-full hover:bg-teal-400 disabled:bg-gray-400 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-all shadow-lg shadow-stitch-primary/30 hover:scale-105 active:scale-95"
                     title="Send message"
                 >
                     <SendIcon className="w-5 h-5" />

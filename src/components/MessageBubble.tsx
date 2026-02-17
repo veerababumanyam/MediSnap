@@ -259,7 +259,7 @@ const AiMessageContent: React.FC<{ message: Message; patient?: Patient | null; o
 const UserMessageContent: React.FC<{ message: Message; onViewFiles: (files: UploadableFile[], startIndex: number) => void }> = React.memo(({ message, onViewFiles }) => {
     switch (message.type) {
         case 'text':
-            return <p className="font-medium text-white">{message.text}</p>;
+            return <p className="font-medium text-stitch-bg-dark">{message.text}</p>;
         case 'image':
             // Resolve image source: storageUrl > base64 > thumbnail
             const imgSrc = message.storageUrl
@@ -299,21 +299,21 @@ const UserMessageContent: React.FC<{ message: Message; onViewFiles: (files: Uplo
                             // Resolve file image source: storageUrl > previewUrl > thumbnail
                             const fileSrc = file.storageUrl || file.previewUrl || (file.thumbnailBase64 ? `data:image/jpeg;base64,${file.thumbnailBase64}` : '');
                             return (
-                            <div
-                                key={index}
-                                onClick={() => onViewFiles(message.files, index)}
-                                className="relative group aspect-square bg-white/10 rounded-xl flex items-center justify-center cursor-pointer overflow-hidden border border-white/20 hover:border-white/40 transition-all"
-                            >
-                                {fileSrc ? (
-                                    <img src={fileSrc} alt={file.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                                ) : (
-                                    <div className="text-white/40 text-xs text-center p-2">📎 {file.name}</div>
-                                )}
-                                <div className="absolute inset-0 flex flex-col items-center justify-center p-1 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px]">
-                                    <ReportTypeIcon type={getFileTypeFromFile(file)} className="w-6 h-6 text-white drop-shadow-md" />
-                                    <p className="text-white text-xs text-center font-bold truncate mt-1 drop-shadow-md w-full px-1">{file.name}</p>
+                                <div
+                                    key={index}
+                                    onClick={() => onViewFiles(message.files, index)}
+                                    className="relative group aspect-square bg-white/10 rounded-xl flex items-center justify-center cursor-pointer overflow-hidden border border-white/20 hover:border-white/40 transition-all"
+                                >
+                                    {fileSrc ? (
+                                        <img src={fileSrc} alt={file.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                    ) : (
+                                        <div className="text-white/40 text-xs text-center p-2">📎 {file.name}</div>
+                                    )}
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center p-1 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px]">
+                                        <ReportTypeIcon type={getFileTypeFromFile(file)} className="w-6 h-6 text-white drop-shadow-md" />
+                                        <p className="text-white text-xs text-center font-bold truncate mt-1 drop-shadow-md w-full px-1">{file.name}</p>
+                                    </div>
                                 </div>
-                            </div>
                             );
                         })}
                     </div>
@@ -377,8 +377,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({ message
     if (isAI && isLoading) {
         return (
             <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 flex-shrink-0 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center animate-pulse">
-                    <LogoIcon className="w-5 h-5 text-blue-500" />
+                <div className="w-8 h-8 flex-shrink-0 bg-stitch-primary/10 dark:bg-stitch-primary/20 rounded-full flex items-center justify-center animate-pulse">
+                    <LogoIcon className="w-5 h-5 text-stitch-primary" />
                 </div>
                 <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md p-4 rounded-2xl rounded-tl-none shadow-sm flex items-center space-x-2 border border-white/40 dark:border-gray-700/40">
                     <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-0"></span>
@@ -392,7 +392,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({ message
     return (
         <div className={`flex items-end space-x-3 group ${isAI ? 'justify-start' : 'justify-end'}`}>
             {isAI && (
-                <div className="w-8 h-8 flex-shrink-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 mb-2">
+                <div className="w-8 h-8 flex-shrink-0 bg-gradient-to-br from-stitch-primary to-teal-500 rounded-full flex items-center justify-center shadow-lg shadow-stitch-primary/30 mb-2">
                     <LogoIcon className="w-5 h-5 text-white" />
                 </div>
             )}
