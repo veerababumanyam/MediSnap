@@ -3,7 +3,7 @@ import { useInView } from './LandingUtils';
 import { StentIcon } from '../icons/StentIcon';
 import { PacemakerIcon } from '../icons/PacemakerIcon';
 import { HeartPumpIcon } from '../icons/HeartPumpIcon';
-import { EyeIcon, BrainIcon, KidneyIcon, DnaIcon, LungsIcon, DropIcon, BugIcon, StomachIcon, JointIcon, ElderIcon } from '../icons/SpecialtyIcons';
+import { EyeIcon, BrainIcon, KidneyIcon, DnaIcon, LungsIcon, DropIcon, BugIcon, StomachIcon, JointIcon, ElderIcon, PillIcon, AppleIcon } from '../icons/SpecialtyIcons';
 
 /* ─── Specialty Pill ────────────────────────────────────────── */
 
@@ -71,6 +71,9 @@ export const SpecialtiesSection: React.FC = () => {
                     <SpecialtyPill icon={<StomachIcon className="w-6 h-6" />} title="Gastroenterology" desc="Endoscopy, Liver function" color="text-orange-400" delay={450} />
                     <SpecialtyPill icon={<JointIcon className="w-6 h-6" />} title="Rheumatology" desc="Autoimmune markers, Inflammation" color="text-rose-400" delay={500} />
                     <SpecialtyPill icon={<ElderIcon className="w-6 h-6" />} title="Geriatrics" desc="Frailty, Polypharmacy, Falls" color="text-amber-400" delay={550} />
+                    <SpecialtyPill icon={<BrainIcon className="w-6 h-6" />} title="Psychiatry" desc="Mental Status Exam, Risk Assessment" color="text-violet-400" delay={600} />
+                    <SpecialtyPill icon={<PillIcon className="w-6 h-6" />} title="Clinical Pharmacy" desc="Drug Interactions, Renal Dosing" color="text-emerald-400" delay={650} />
+                    <SpecialtyPill icon={<AppleIcon className="w-6 h-6" />} title="Nutrition" desc="Medical Nutrition Therapy, Diet" color="text-lime-400" delay={700} />
                 </div>
             </div>
         </section>

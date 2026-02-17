@@ -3,56 +3,56 @@ import React from 'react';
 
 export const LungsIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.7l-1.2 4 6 3.2-2 2-4-1.5L1 16l7.4 1.6c.7.1 1.4-.1 1.9-.4l4.1-2.6 3.4 4.6z"/>
+    <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.7l-1.2 4 6 3.2-2 2-4-1.5L1 16l7.4 1.6c.7.1 1.4-.1 1.9-.4l4.1-2.6 3.4 4.6z" />
   </svg>
 );
 
 export const StomachIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M16 19h4a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3"/>
-    <path d="M7 2h5a2 2 0 0 1 2 2v2"/>
-    <path d="M12 10a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h2"/>
-    <path d="M8 14v4a2 2 0 0 0 2 2h4"/>
+    <path d="M16 19h4a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3" />
+    <path d="M7 2h5a2 2 0 0 1 2 2v2" />
+    <path d="M12 10a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h2" />
+    <path d="M8 14v4a2 2 0 0 0 2 2h4" />
   </svg>
 );
 
 export const BoneIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M17 10c.7-.7 1.69 0 2.5 0a2.5 2.5 0 1 0 0-5 .5.5 0 0 1-.5-.5 2.5 2.5 0 1 0-5 0c0 .81.7 1.8 0 2.5l-7 7c-.7.7-1.69 0-2.5 0a2.5 2.5 0 0 0 0 5c.28 0 .5.22.5.5a2.5 2.5 0 1 0 5 0c0-.81-.7-1.8 0-2.5Z"/>
+    <path d="M17 10c.7-.7 1.69 0 2.5 0a2.5 2.5 0 1 0 0-5 .5.5 0 0 1-.5-.5 2.5 2.5 0 1 0-5 0c0 .81.7 1.8 0 2.5l-7 7c-.7.7-1.69 0-2.5 0a2.5 2.5 0 0 0 0 5c.28 0 .5.22.5.5a2.5 2.5 0 1 0 5 0c0-.81-.7-1.8 0-2.5Z" />
   </svg>
 );
 
 export const KidneyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5Z"/>
-    <path d="M12 2v5"/>
-    <path d="M12 17v5"/>
-    <path d="m7 7-3.5-3.5"/>
-    <path d="m17 17 3.5 3.5"/>
-    <path d="m7 17-3.5 3.5"/>
-    <path d="m17 7 3.5-3.5"/>
+    <path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5Z" />
+    <path d="M12 2v5" />
+    <path d="M12 17v5" />
+    <path d="m7 7-3.5-3.5" />
+    <path d="m17 17 3.5 3.5" />
+    <path d="m7 17-3.5 3.5" />
+    <path d="m17 7 3.5-3.5" />
   </svg>
 );
 
 export const DropIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>
+    <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" />
   </svg>
 );
 
 export const DnaIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M2 15c6.667-6 13.333 0 20-6"/>
-    <path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/>
-    <path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/>
-    <path d="M17 6l-2.5-2.5"/>
-    <path d="M14 8l-1-1"/>
-    <path d="M7 18l2.5 2.5"/>
-    <path d="M3.5 14.5l.5.5"/>
-    <path d="M20 9l.5.5"/>
-    <path d="M6.5 12.5l1 1"/>
-    <path d="M16.5 10.5l1 1"/>
-    <path d="M10 16l1.5 1.5"/>
+    <path d="M2 15c6.667-6 13.333 0 20-6" />
+    <path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993" />
+    <path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993" />
+    <path d="M17 6l-2.5-2.5" />
+    <path d="M14 8l-1-1" />
+    <path d="M7 18l2.5 2.5" />
+    <path d="M3.5 14.5l.5.5" />
+    <path d="M20 9l.5.5" />
+    <path d="M6.5 12.5l1 1" />
+    <path d="M16.5 10.5l1 1" />
+    <path d="M10 16l1.5 1.5" />
   </svg>
 );
 
@@ -124,5 +124,19 @@ export const BrainIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <path d="M12 13v9" />
     <path d="M9.5 2a5.5 5.5 0 0 1 5 5.5" />
     <path d="M12 13h2.5" />
+  </svg>
+);
+
+export const PillIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+    <path d="m8.5 8.5 7 7" />
+  </svg>
+);
+
+export const AppleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z" />
+    <path d="M10 2c1 .5 2 2 2 5" />
   </svg>
 );
