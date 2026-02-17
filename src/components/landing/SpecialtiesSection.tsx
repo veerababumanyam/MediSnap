@@ -58,23 +58,53 @@ export const SpecialtiesSection: React.FC = () => {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    <SpecialtyPill icon={<StentIcon className="w-6 h-6" />} title="Interventional Cardiology" desc="Angiograms, PCI planning, SYNTAX" color="text-blue-400" delay={0} />
-                    <SpecialtyPill icon={<PacemakerIcon className="w-6 h-6" />} title="Electrophysiology" desc="Device interrogation, Arrhythmia" color="text-cyan-400" delay={50} />
-                    <SpecialtyPill icon={<HeartPumpIcon className="w-6 h-6" />} title="Heart Failure" desc="LVAD, Transplant evaluation" color="text-red-400" delay={100} />
-                    <SpecialtyPill icon={<BrainIcon className="w-6 h-6" />} title="Neurology" desc="Stroke protocols, MRI Brain" color="text-indigo-400" delay={150} />
-                    <SpecialtyPill icon={<KidneyIcon className="w-6 h-6" />} title="Nephrology" desc="CKD staging, Electrolytes" color="text-yellow-400" delay={200} />
-                    <SpecialtyPill icon={<DnaIcon className="w-6 h-6" />} title="Oncology" desc="TNM staging, Biomarker profiles" color="text-pink-400" delay={250} />
-                    <SpecialtyPill icon={<LungsIcon className="w-6 h-6" />} title="Pulmonology" desc="PFT interpretation, Nodule tracking" color="text-teal-400" delay={300} />
-                    <SpecialtyPill icon={<DropIcon className="w-6 h-6" />} title="Endocrinology" desc="Diabetes & Thyroid management" color="text-purple-400" delay={350} />
-                    <SpecialtyPill icon={<BugIcon className="w-6 h-6" />} title="Infectious Disease" desc="Sepsis, Antibiotic stewardship" color="text-green-400" delay={400} />
-                    <SpecialtyPill icon={<StomachIcon className="w-6 h-6" />} title="Gastroenterology" desc="Endoscopy, Liver function" color="text-orange-400" delay={450} />
-                    <SpecialtyPill icon={<JointIcon className="w-6 h-6" />} title="Rheumatology" desc="Autoimmune markers, Inflammation" color="text-rose-400" delay={500} />
-                    <SpecialtyPill icon={<ElderIcon className="w-6 h-6" />} title="Geriatrics" desc="Frailty, Polypharmacy, Falls" color="text-amber-400" delay={550} />
-                    <SpecialtyPill icon={<BrainIcon className="w-6 h-6" />} title="Psychiatry" desc="Mental Status Exam, Risk Assessment" color="text-violet-400" delay={600} />
-                    <SpecialtyPill icon={<PillIcon className="w-6 h-6" />} title="Clinical Pharmacy" desc="Drug Interactions, Renal Dosing" color="text-emerald-400" delay={650} />
-                    <SpecialtyPill icon={<AppleIcon className="w-6 h-6" />} title="Nutrition" desc="Medical Nutrition Therapy, Diet" color="text-lime-400" delay={700} />
-                </div>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" aria-label="Medical Specialties List">
+                    <li className="contents">
+                        <SpecialtyPill icon={<StentIcon className="w-6 h-6" />} title="Interventional Cardiology" desc="Angiograms, PCI planning, SYNTAX" color="text-blue-400" delay={0} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<PacemakerIcon className="w-6 h-6" />} title="Electrophysiology" desc="Device interrogation, Arrhythmia" color="text-cyan-400" delay={50} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<HeartPumpIcon className="w-6 h-6" />} title="Heart Failure" desc="LVAD, Transplant evaluation" color="text-red-400" delay={100} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<BrainIcon className="w-6 h-6" />} title="Neurology" desc="Stroke protocols, MRI Brain" color="text-indigo-400" delay={150} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<KidneyIcon className="w-6 h-6" />} title="Nephrology" desc="CKD staging, Electrolytes" color="text-yellow-400" delay={200} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<DnaIcon className="w-6 h-6" />} title="Oncology" desc="TNM staging, Biomarker profiles" color="text-pink-400" delay={250} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<LungsIcon className="w-6 h-6" />} title="Pulmonology" desc="PFT interpretation, Nodule tracking" color="text-teal-400" delay={300} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<DropIcon className="w-6 h-6" />} title="Endocrinology" desc="Diabetes & Thyroid management" color="text-purple-400" delay={350} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<BugIcon className="w-6 h-6" />} title="Infectious Disease" desc="Sepsis, Antibiotic stewardship" color="text-green-400" delay={400} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<StomachIcon className="w-6 h-6" />} title="Gastroenterology" desc="Endoscopy, Liver function" color="text-orange-400" delay={450} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<JointIcon className="w-6 h-6" />} title="Rheumatology" desc="Autoimmune markers, Inflammation" color="text-rose-400" delay={500} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<ElderIcon className="w-6 h-6" />} title="Geriatrics" desc="Frailty, Polypharmacy, Falls" color="text-amber-400" delay={550} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<BrainIcon className="w-6 h-6" />} title="Psychiatry" desc="Mental Status Exam, Risk Assessment" color="text-violet-400" delay={600} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<PillIcon className="w-6 h-6" />} title="Clinical Pharmacy" desc="Drug Interactions, Renal Dosing" color="text-emerald-400" delay={650} />
+                    </li>
+                    <li className="contents">
+                        <SpecialtyPill icon={<AppleIcon className="w-6 h-6" />} title="Nutrition" desc="Medical Nutrition Therapy, Diet" color="text-lime-400" delay={700} />
+                    </li>
+                </ul>
             </div>
         </section>
     );

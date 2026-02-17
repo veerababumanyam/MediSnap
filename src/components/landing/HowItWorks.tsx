@@ -13,11 +13,14 @@ const WorkflowStep: React.FC<{
     const { ref, isVisible } = useInView();
 
     return (
-        <div
+        <li
             ref={ref}
             className={`relative p-8 rounded-3xl landing-glass-card border border-white/[0.06] hover:border-white/[0.15] transition-all duration-700 group hover:-translate-y-1 hover:shadow-[0_8px_40px_rgba(139,92,246,0.1)] ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
                 }`}
             style={{ transitionDelay: `${delay}ms` }}
+            itemProp="step"
+            itemScope
+            itemType="http://schema.org/HowToStep"
         >
             {/* Giant watermark number */}
             <div className={`text-7xl font-black bg-gradient-to-r ${gradient} bg-clip-text text-transparent opacity-[0.12] absolute top-4 right-6 group-hover:opacity-[0.2] transition-opacity duration-500`} aria-hidden="true">
@@ -31,10 +34,10 @@ const WorkflowStep: React.FC<{
                 <div className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} text-white text-lg font-bold mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                     {step}
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3">{title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{description}</p>
+                <h3 className="text-xl font-bold text-white mb-3" itemProp="name">{title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed" itemProp="text">{description}</p>
             </div>
-        </div>
+        </li>
     );
 };
 
@@ -44,7 +47,12 @@ export const HowItWorks: React.FC = () => {
     const { ref: headerRef, isVisible: headerVisible } = useInView();
 
     return (
-        <section className="px-5 md:px-8 py-24 md:py-32 bg-gradient-to-b from-transparent via-blue-950/[0.04] to-transparent relative" aria-labelledby="workflow-heading">
+        <section
+            className="px-5 md:px-8 py-24 md:py-32 bg-gradient-to-b from-transparent via-blue-950/[0.04] to-transparent relative"
+            aria-labelledby="workflow-heading"
+            itemScope
+            itemType="http://schema.org/HowTo"
+        >
             <div className="max-w-5xl mx-auto text-center">
                 <div
                     ref={headerRef}
@@ -53,7 +61,7 @@ export const HowItWorks: React.FC = () => {
                     <div className="inline-flex items-center px-4 py-2 rounded-full border border-indigo-400/20 bg-indigo-500/[0.08] text-indigo-300 text-xs font-bold uppercase tracking-[0.2em] mb-6">
                         How It Works
                     </div>
-                    <h2 id="workflow-heading" className="text-4xl md:text-5xl font-extrabold text-white mb-6 tracking-tight">
+                    <h2 id="workflow-heading" className="text-4xl md:text-5xl font-extrabold text-white mb-6 tracking-tight" itemProp="name">
                         From Data to{' '}
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Decision</span>{' '}
                         in Seconds
@@ -69,7 +77,7 @@ export const HowItWorks: React.FC = () => {
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-400/20 to-transparent blur-sm" />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
+                    <ol className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
                         <WorkflowStep
                             step="01"
                             title="Upload & Connect"
@@ -91,7 +99,7 @@ export const HowItWorks: React.FC = () => {
                             gradient="from-emerald-500 to-teal-400"
                             delay={300}
                         />
-                    </div>
+                    </ol>
                 </div>
             </div>
         </section>

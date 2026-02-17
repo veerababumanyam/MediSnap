@@ -22,11 +22,13 @@ const FeatureCard: React.FC<{
     const { ref, isVisible } = useInView();
 
     return (
-        <div
+        <article
             ref={ref}
             className={`group relative rounded-3xl landing-glass-card border border-white/[0.08] p-7 transition-all duration-700 hover:-translate-y-2 hover:border-white/[0.18] hover:shadow-[0_8px_40px_rgba(139,92,246,0.12)] overflow-hidden ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
                 }`}
             style={{ transitionDelay: `${delay}ms` }}
+            itemScope
+            itemType="https://schema.org/Service"
         >
             {/* Hover gradient overlay */}
             <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-[0.08] transition-opacity duration-500`} />
@@ -41,10 +43,10 @@ const FeatureCard: React.FC<{
                 <div className={`mb-5 p-3.5 rounded-2xl bg-gradient-to-br ${gradient} w-fit text-white shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-500`}>
                     {icon}
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3 tracking-tight group-hover:text-blue-100 transition-colors duration-300">{title}</h3>
-                <p className="text-gray-400 text-[15px] leading-relaxed group-hover:text-gray-300 transition-colors duration-300">{description}</p>
+                <h3 className="text-xl font-bold text-white mb-3 tracking-tight group-hover:text-blue-100 transition-colors duration-300" itemProp="name">{title}</h3>
+                <p className="text-gray-400 text-[15px] leading-relaxed group-hover:text-gray-300 transition-colors duration-300" itemProp="description">{description}</p>
             </div>
-        </div>
+        </article>
     );
 };
 
@@ -78,7 +80,7 @@ export const FeaturesGrid: React.FC = () => {
                     <FeatureCard
                         icon={<UsersIcon className="w-7 h-7" />}
                         title="Bio-AI Board"
-                        description="Simulate a multidisciplinary medical board review. Specialists in Nephrology, Neurology, Oncology, and more collaborate to reach consensus on complex cases."
+                        description="The Bio-AI Board simulates a multidisciplinary medical board review. Specialists in Nephrology, Neurology, Oncology, and more collaborate to reach consensus on complex cases."
                         gradient="from-blue-500/80 to-cyan-400/80"
                         delay={0}
                     />

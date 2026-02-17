@@ -8,7 +8,7 @@ import {
     SpecialtiesSection,
     BiomarkerSection,
     HowItWorks,
-    TestimonialsSection,
+
     SecurityBadges,
     FinalCTA,
     Footer,
@@ -167,7 +167,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
             )}
 
             {/* ─── Main Content Structure ───────────────────────────── */}
-            
+
             <NavBar onSignIn={handleSignIn} scrollToSection={scrollToSection} />
 
             <main>
@@ -195,9 +195,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                     <HowItWorks />
                 </div>
 
-                <div id="testimonials">
-                    <TestimonialsSection />
-                </div>
+
 
                 <div id="security">
                     <SecurityBadges />

@@ -186,15 +186,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onEnter }) => (
                         The Future of
                     </span>
                     <span className="block mt-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 landing-gradient-text">
-                        Clinical Intelligence
+                        Clinical Intelligence & Bio-Analytics
                     </span>
                 </h1>
 
                 <p className="text-lg md:text-xl text-gray-400 max-w-xl mx-auto lg:mx-0 mb-10 leading-relaxed font-light landing-slide-up" style={{ animationDelay: '150ms' }}>
-                    Transform complex patient data into actionable insights with
+                    <strong>Zentis AI</strong> transforms complex patient data into actionable insights with
                     <strong className="text-blue-300 font-medium"> Live Bio-Signals</strong>,{' '}
                     <strong className="text-purple-300 font-medium">Multi-Agent Medical Boards</strong>,
-                    and real-time clinical critics.
+                    and real-time clinical critics to augment clinical decision making.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start landing-slide-up" style={{ animationDelay: '300ms' }}>

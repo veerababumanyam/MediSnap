@@ -6,7 +6,7 @@ export * from './FeaturesGrid';
 export * from './SpecialtiesSection';
 export * from './BiomarkerSection';
 export * from './HowItWorks';
-export * from './TestimonialsSection';
+
 export * from './SecurityBadges';
 export * from './FinalCTA';
 export * from './Footer';

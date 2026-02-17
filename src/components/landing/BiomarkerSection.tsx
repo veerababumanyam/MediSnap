@@ -38,9 +38,22 @@ export const BiomarkerSection: React.FC = () => {
                             Advanced{' '}
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-400">Biomarker Detection</span>
                         </h2>
-                        <p className="text-gray-400 mb-10 leading-relaxed text-lg font-light">
+                        <p className="text-gray-400 mb-8 leading-relaxed text-lg font-light">
                             The AI Agent passively analyzes voice acoustics, facial expressions, and visual signs to detect medical and emotional symptoms in real-time.
                         </p>
+
+                        {/* GEO Optimization: Key Takeaways for AI Extraction */}
+                        <div className="mb-10 p-5 rounded-xl bg-white/[0.03] border border-white/10">
+                            <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-3 flex items-center">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mr-2"></span>
+                                Key Analysis Capabilities
+                            </h4>
+                            <ul className="text-sm text-gray-400 space-y-2 list-disc list-inside marker:text-rose-500/50">
+                                <li><strong>Multimodal Processing:</strong> Simultaneous analysis of audio, video, and text streams.</li>
+                                <li><strong>Pre-Clinical Detection:</strong> Identifies subtle biomarkers like micro-tremors or dyspnea before they differ clinically.</li>
+                                <li><strong>Real-Time Alerts:</strong> Instant notifications for acute distress signs (e.g., cyanosis, labored breathing).</li>
+                            </ul>
+                        </div>
 
                         <div className="space-y-10">
                             <div>

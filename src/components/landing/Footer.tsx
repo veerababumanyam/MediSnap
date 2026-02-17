@@ -26,6 +26,11 @@ export const Footer: React.FC<FooterProps> = ({ scrollToSection }) => (
                     <p className="text-gray-500 text-xs leading-relaxed max-w-[220px]">
                         AI-powered clinical intelligence platform for modern healthcare teams.
                     </p>
+                    <address className="mt-6 not-italic text-xs text-gray-500 space-y-1">
+                        <p>123 Innovation Drive</p>
+                        <p>San Francisco, CA 94103</p>
+                        <p><a href="mailto:contact@zentisai.com" className="hover:text-blue-400 transition-colors">contact@zentisai.com</a></p>
+                    </address>
                 </div>
 
                 {/* Product */}
